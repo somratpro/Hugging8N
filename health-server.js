@@ -300,19 +300,35 @@ const server = http.createServer(async (req, res) => {
     );
   }
 
-  // Proxy to n8n
-  // We strip the /app prefix if present, as n8n will be configured with N8N_PATH=/
-  let proxyPath = pathname;
-  if (proxyPath.startsWith(APP_BASE)) {
-    proxyPath = proxyPath.substring(APP_BASE.length);
+  // 1. Redirect root /app to /app/ (trailing slash)
+  if (pathname === APP_BASE) {
+    res.writeHead(301, { Location: APP_BASE + "/" });
+    return res.end();
   }
+
+  // 2. Confine n8n to /app subpath
+  // If it's not a dashboard path and doesn't start with /app, redirect to /app/
+  if (!pathname.startsWith(APP_BASE + "/")) {
+    res.writeHead(302, { Location: APP_BASE + "/" });
+    return res.end();
+  }
+
+  // 3. Proxy to n8n (strip /app prefix)
+  let proxyPath = pathname.substring(APP_BASE.length);
   if (!proxyPath.startsWith("/")) proxyPath = "/" + proxyPath;
+
+  // Handle n8n's common 404 on root / by redirecting to workflows
+  if (proxyPath === "/" && req.method === "GET") {
+    res.writeHead(302, { Location: APP_BASE + "/home/workflows" });
+    return res.end();
+  }
 
   const proxyHeaders = {
     ...req.headers,
     host: `127.0.0.1:${TARGET_PORT}`,
     "x-forwarded-for": req.socket.remoteAddress,
     "x-forwarded-proto": "https",
+    "x-forwarded-prefix": APP_BASE,
   };
 
   const proxyReq = http.request(
@@ -324,6 +340,10 @@ const server = http.createServer(async (req, res) => {
       headers: proxyHeaders,
     },
     (proxyRes) => {
+      // Rewrite Location header for redirects
+      if (proxyRes.headers.location && proxyRes.headers.location.startsWith("/")) {
+        proxyRes.headers.location = APP_BASE + proxyRes.headers.location;
+      }
       res.writeHead(proxyRes.statusCode, proxyRes.headers);
       proxyRes.pipe(res);
     },
