@@ -299,8 +299,14 @@ const server = http.createServer(async (req, res) => {
     );
   }
 
-  // Proxy to n8n (pass full path as n8n is configured with N8N_PATH=/app/)
-  const proxyPath = pathname;
+  // Proxy to n8n
+  // We strip the /app prefix if present, as n8n will be configured with N8N_PATH=/
+  let proxyPath = pathname;
+  if (proxyPath.startsWith(APP_BASE)) {
+    proxyPath = proxyPath.substring(APP_BASE.length);
+  }
+  if (!proxyPath.startsWith("/")) proxyPath = "/" + proxyPath;
+
   const proxyHeaders = {
     ...req.headers,
     host: `127.0.0.1:${TARGET_PORT}`,
@@ -337,7 +343,12 @@ const server = http.createServer(async (req, res) => {
 
 server.on("upgrade", (req, socket, head) => {
   const url = parseRequestUrl(req.url);
-  const proxyPath = url.pathname;
+  let proxyPath = url.pathname;
+  if (proxyPath.startsWith(APP_BASE)) {
+    proxyPath = proxyPath.substring(APP_BASE.length);
+  }
+  if (!proxyPath.startsWith("/")) proxyPath = "/" + proxyPath;
+
   const proxySocket = net.connect(TARGET_PORT, TARGET_HOST, () => {
     proxySocket.write(
       `${req.method} ${proxyPath}${url.search} HTTP/${req.httpVersion}\r\n`,

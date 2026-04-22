@@ -21,9 +21,9 @@ secrets:
 - ⚡ **Zero Config:** Duplicate this Space, set `HF_TOKEN`, and you're ready.
 - 💾 **Persistent Backup:** Workflows and credentials back up automatically to a private HF Dataset.
 - 🔐 **Secure by Default:** Uses n8n v2's built-in user management. No more insecure environment variables.
-- 🐳 **Docker Native:** Optimized for the free HF Spaces tier.
-- 🌐 **Dashboard UI:** Beautiful management interface at the root URL.
-- ⏰ **Built-in Keep-Alive:** Easily setup UptimeRobot from the dashboard.
+- 🌐 **Premium Dashboard:** Live status monitoring, uptime tracking, and integrated keep-alive tools.
+- ⏰ **Built-in Keep-Alive:** Easily setup UptimeRobot directly from the dashboard UI.
+- 🐳 **Optimized Infrastructure:** Clean startup logs, minimal resource usage, and production-ready proxy.
 
 ## 🚀 Quick Start
 
@@ -31,29 +31,46 @@ secrets:
 
 [![Duplicate this Space](https://huggingface.co/datasets/huggingface/badges/resolve/main/duplicate-this-space-xl.svg)](https://huggingface.co/spaces/somratpro/Hugging8n?duplicate=true)
 
-### Step 2: Add Your HF_TOKEN
+### Step 2: Configure Secrets
 
-Add your HuggingFace token with **write** access to the Space Secrets. This enables automatic backup so your workflows aren't lost on restart.
+Go to **Settings > Secrets** and add:
+- `HF_TOKEN`: Your HuggingFace token with **Write** access.
 
-### Step 3: Set Up Auth
+### Step 3: Initialize n8n
 
-When the Space starts, visit the URL and click **Open n8n Editor**. On the first run, n8n will ask you to create an owner account. **This is your primary login.**
+1. Wait for the Space to build.
+2. Visit the Space URL and click **Open n8n Editor**.
+3. Create your owner account (this is your primary login).
 
-## 🔐 Authentication
+## ⚙️ Configuration
+
+You can customize Hugging8n using Environment Variables (Settings > Variables):
+
+| Variable | Default | Description |
+| :--- | :--- | :--- |
+| `SYNC_INTERVAL` | `180` | Backup frequency in seconds. |
+| `GENERIC_TIMEZONE` | `UTC` | Timezone for n8n. |
+| `N8N_LOG_LEVEL` | `error` | Set to `info` for more verbose logs. |
+| `SPACE_HOST_OVERRIDE` | - | Override the detected host if using a custom domain. |
+
+## 🔐 Authentication & Security
 
 Hugging8n uses n8n's native user management.
-
-1. The first person to visit `/app/` on a fresh install becomes the owner.
-2. If you are restoring from a backup, your existing user accounts will be active.
+- The first person to visit `/app/` on a fresh install becomes the **Owner**.
+- **Important:** If you delete the Space and haven't set up `HF_TOKEN`, your users and workflows will be lost.
+- **Permissions:** The startup script uses `umask 0077` to ensure all sensitive data is restricted to the node user.
 
 ## 💾 Persistent Backup
 
-Your data is synced to a private dataset named `hugging8n-backup` in your HF account.
+Hugging8n automatically creates and maintains a private dataset in your Hugging Face account named `hugging8n-backup`.
+- **Sync Status:** You can check the current sync health directly on the Hugging8n Dashboard.
+- **Restoration:** On every startup, Hugging8n pulls the latest state from your dataset before launching n8n.
 
 ## 🏗️ Architecture
 
-- `/` : Premium Dashboard (Status, Uptime, Keep-Alive setup)
-- `/app/` : n8n Workflow Editor
-- `/health` : Health check endpoint
+- `/` : **Premium Dashboard** (Management & Monitoring)
+- `/app/` : **n8n Workflow Editor**
+- `/health` : **Health Check** (Used by the internal proxy and external monitors)
 
+---
 *Made with ❤️ by [@somratpro](https://github.com/somratpro)*
