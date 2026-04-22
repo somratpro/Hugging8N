@@ -12,8 +12,6 @@ secrets:
     description: Password to log in to your n8n instance. Required to protect your workflows.
   - name: HF_TOKEN
     description: HuggingFace token with write access. Used for automatic backup of your workflows and credentials to a private dataset.
-  - name: N8N_ENCRYPTION_KEY
-    description: Encryption key for stored credentials. Set this explicitly so credentials survive Space rebuilds. Generate with — openssl rand -hex 32
 ---
 
 <!-- Badges -->
