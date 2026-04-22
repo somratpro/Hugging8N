@@ -167,7 +167,7 @@ def sync_once(last_fingerprint: str | None = None) -> str:
     repo_id = ensure_repo_exists()
     current_fingerprint = fingerprint_dir(N8N_HOME)
     if last_fingerprint is not None and current_fingerprint == last_fingerprint:
-        write_status("idle", "No state changes detected.")
+        write_status("synced", "No state changes detected.")
         return last_fingerprint
 
     write_status("syncing", f"Uploading state to {repo_id}")

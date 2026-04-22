@@ -37,7 +37,8 @@ function renderDashboard(data) {
     if (
       status === "success" ||
       status === "configured" ||
-      status === "restored"
+      status === "restored" ||
+      status === "synced"
     )
       cls = "status-online";
     if (status === "syncing" || status === "restoring") cls = "status-syncing";
