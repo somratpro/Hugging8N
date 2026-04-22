@@ -313,8 +313,9 @@ const server = http.createServer(async (req, res) => {
     return res.end();
   }
 
-  // Proxy to n8n (Pass full path as n8n is configured with N8N_PATH=/app/)
-  const proxyPath = pathname;
+  // 3. Proxy to n8n (strip /app prefix)
+  let proxyPath = pathname.substring(APP_BASE.length);
+  if (!proxyPath.startsWith("/")) proxyPath = "/" + proxyPath;
 
   const proxyHeaders = {
     ...req.headers,
@@ -333,6 +334,10 @@ const server = http.createServer(async (req, res) => {
       headers: proxyHeaders,
     },
     (proxyRes) => {
+      // Rewrite Location header for redirects
+      if (proxyRes.headers.location && proxyRes.headers.location.startsWith("/")) {
+        proxyRes.headers.location = APP_BASE + proxyRes.headers.location;
+      }
       res.writeHead(proxyRes.statusCode, proxyRes.headers);
       proxyRes.pipe(res);
     },
@@ -353,7 +358,11 @@ const server = http.createServer(async (req, res) => {
 
 server.on("upgrade", (req, socket, head) => {
   const url = parseRequestUrl(req.url);
-  const proxyPath = url.pathname;
+  let proxyPath = url.pathname;
+  if (proxyPath.startsWith(APP_BASE)) {
+    proxyPath = proxyPath.substring(APP_BASE.length);
+  }
+  if (!proxyPath.startsWith("/")) proxyPath = "/" + proxyPath;
 
   const proxySocket = net.connect(TARGET_PORT, TARGET_HOST, () => {
     proxySocket.write(
