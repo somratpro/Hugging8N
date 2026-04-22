@@ -231,8 +231,8 @@ const server = http.createServer(async (req, res) => {
     }));
   }
 
-  // Proxy to n8n
-  const proxyPath = pathname.startsWith(APP_BASE) ? pathname.slice(APP_BASE.length) || "/" : pathname;
+  // Proxy to n8n (pass full path as n8n is configured with N8N_PATH=/app/)
+  const proxyPath = pathname;
   const proxyHeaders = { ...req.headers, host: `127.0.0.1:${TARGET_PORT}`, "x-forwarded-for": req.socket.remoteAddress, "x-forwarded-proto": "https" };
   
   const proxyReq = http.request({ hostname: TARGET_HOST, port: TARGET_PORT, path: proxyPath + url.search, method: req.method, headers: proxyHeaders }, (proxyRes) => {
@@ -250,7 +250,7 @@ const server = http.createServer(async (req, res) => {
 
 server.on("upgrade", (req, socket, head) => {
   const url = parseRequestUrl(req.url);
-  const proxyPath = url.pathname.startsWith(APP_BASE) ? url.pathname.slice(APP_BASE.length) || "/" : url.pathname;
+  const proxyPath = url.pathname;
   const proxySocket = net.connect(TARGET_PORT, TARGET_HOST, () => {
     proxySocket.write(`${req.method} ${proxyPath}${url.search} HTTP/${req.httpVersion}\r\n`);
     for (let i = 0; i < req.rawHeaders.length; i += 2) {
