@@ -106,7 +106,7 @@ function renderDashboard(data) {
             </div>
         </div>
 
-        <a href="/app/" class="btn">Open n8n Editor</a>
+        <a href="/app/" class="btn" target="_blank" rel="noopener noreferrer">Open n8n Editor</a>
 
         <div class="card" style="margin-top:24px">
             <span class="label">Keep Alive</span>
