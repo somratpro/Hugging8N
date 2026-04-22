@@ -19,8 +19,6 @@ RUN apt-get update && apt-get install -y -q --no-install-recommends \
     tini \
     && pip3 install -q --no-cache-dir --break-system-packages huggingface_hub \
     && npm install -g --loglevel=error n8n@${N8N_VERSION} \
-    && mv /usr/bin/python3 /usr/bin/python3-sync \
-    && (mv /usr/bin/python3.11 /usr/bin/python3.11-sync || true) \
     && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /home/node/app /home/node/.n8n && \

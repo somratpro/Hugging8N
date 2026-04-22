@@ -1,4 +1,4 @@
-#!/usr/bin/env python3-sync
+#!/usr/bin/env python3
 
 import hashlib
 import json

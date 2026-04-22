@@ -37,6 +37,7 @@ export TZ="${TZ:-$GENERIC_TIMEZONE}"
 export N8N_PYTHON_NODES_ENABLED="${N8N_PYTHON_NODES_ENABLED:-false}"
 export N8N_TASK_RUNNERS_ENABLED="${N8N_TASK_RUNNERS_ENABLED:-false}"
 export N8N_LICENSE_AUTO_RENEW_ENABLED="${N8N_LICENSE_AUTO_RENEW_ENABLED:-false}"
+export N8N_LOG_LEVEL="${N8N_LOG_LEVEL:-error}"
 
 # n8n v2 uses built-in user management.
 
@@ -53,7 +54,7 @@ echo "Sync every  : ${SYNC_INTERVAL}s"
 
 if [ -n "${HF_TOKEN:-}" ]; then
   echo "Restoring persisted n8n state from HF Dataset..."
-  python3-sync "$APP_DIR/n8n-sync.py" restore || true
+  python3 "$APP_DIR/n8n-sync.py" restore || true
 else
   echo "HF_TOKEN is not set. Running without dataset persistence."
 fi
@@ -65,14 +66,14 @@ cleanup() {
   [ -n "${PROXY_PID:-}" ] && kill "$PROXY_PID" 2>/dev/null || true
   if [ -n "${HF_TOKEN:-}" ]; then
     echo "Running final backup pass..."
-    python3-sync "$APP_DIR/n8n-sync.py" sync-once || true
+    python3 "$APP_DIR/n8n-sync.py" sync-once || true
   fi
 }
 
 trap cleanup EXIT INT TERM
 
 if [ -n "${HF_TOKEN:-}" ]; then
-  python3-sync "$APP_DIR/n8n-sync.py" loop &
+  python3 "$APP_DIR/n8n-sync.py" loop &
   SYNC_PID=$!
 fi
 
