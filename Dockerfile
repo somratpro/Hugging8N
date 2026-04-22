@@ -7,7 +7,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     HF_HUB_DISABLE_PROGRESS_BARS=1 \
     PYTHONUNBUFFERED=1
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y -q --no-install-recommends \
     ca-certificates \
     curl \
     git \
@@ -17,8 +17,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-venv \
     sqlite3 \
     tini \
-    && pip3 install --no-cache-dir --break-system-packages huggingface_hub \
-    && npm install -g n8n@${N8N_VERSION} \
+    && pip3 install -q --no-cache-dir --break-system-packages huggingface_hub \
+    && npm install -g --loglevel=error n8n@${N8N_VERSION} \
     && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /home/node/app /home/node/.n8n && \
