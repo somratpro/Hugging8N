@@ -35,13 +35,8 @@ export TZ="${TZ:-$GENERIC_TIMEZONE}"
 
 # Disable noisy or unnecessary services
 export N8N_PYTHON_NODES_ENABLED="${N8N_PYTHON_NODES_ENABLED:-false}"
+export N8N_TASK_RUNNERS_ENABLED="${N8N_TASK_RUNNERS_ENABLED:-false}"
 export N8N_LICENSE_AUTO_RENEW_ENABLED="${N8N_LICENSE_AUTO_RENEW_ENABLED:-false}"
-
-# Silences the "Python task runner missing venv" warning by ensuring a venv exists
-if [ ! -d "$N8N_HOME/python_venv" ]; then
-  echo "Initializing minimal Python venv for n8n compatibility..."
-  python3 -m venv "$N8N_HOME/python_venv"
-fi
 
 # n8n v2 uses built-in user management.
 
