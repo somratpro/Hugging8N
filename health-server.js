@@ -75,21 +75,33 @@ const server = http.createServer((req, res) => {
 
 server.on("upgrade", (req, socket, head) => {
   const upstream = net.connect(TARGET_PORT, TARGET_HOST, () => {
-    socket.write(
+    const headers = {
+      ...req.headers,
+      host: `${TARGET_HOST}:${TARGET_PORT}`,
+      "x-forwarded-for": req.socket.remoteAddress || "",
+      "x-forwarded-host": req.headers.host || "",
+      "x-forwarded-proto": req.headers["x-forwarded-proto"] || "https",
+      upgrade: req.headers.upgrade || "websocket",
+      connection: "Upgrade",
+    };
+
+    const headerLines = Object.entries(headers)
+      .map(([key, value]) => `${key}: ${value}`)
+      .join("\r\n");
+
+    upstream.write(
       `${req.method} ${req.url} HTTP/${req.httpVersion}\r\n` +
-        Object.entries(buildHeaders(req))
-          .map(([key, value]) => `${key}: ${value}`)
-          .join("\r\n") +
+        headerLines +
         "\r\n\r\n",
     );
+
     if (head && head.length) upstream.write(head);
     upstream.pipe(socket);
     socket.pipe(upstream);
   });
 
-  upstream.on("error", () => {
-    socket.destroy();
-  });
+  upstream.on("error", () => socket.destroy());
+  socket.on("error", () => upstream.destroy());
 });
 
 server.listen(PUBLIC_PORT, "0.0.0.0", () => {

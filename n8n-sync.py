@@ -122,7 +122,6 @@ def restore() -> bool:
                 repo_type="dataset",
                 token=HF_TOKEN,
                 local_dir=tmpdir,
-                local_dir_use_symlinks=False,
             )
 
             tmp_path = Path(tmpdir)

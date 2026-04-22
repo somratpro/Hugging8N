@@ -20,13 +20,26 @@ export N8N_PORT
 export N8N_PROTOCOL="${N8N_PROTOCOL:-https}"
 export N8N_PROXY_HOPS="${N8N_PROXY_HOPS:-1}"
 export N8N_LISTEN_ADDRESS="${N8N_LISTEN_ADDRESS:-0.0.0.0}"
-export N8N_SECURE_COOKIE="${N8N_SECURE_COOKIE:-true}"
+# Must be false: HF Spaces terminates TLS at its edge; n8n sees plain HTTP internally.
+# Secure cookies require HTTPS end-to-end and will break login on HF Spaces.
+export N8N_SECURE_COOKIE="${N8N_SECURE_COOKIE:-false}"
 export N8N_DIAGNOSTICS_ENABLED="${N8N_DIAGNOSTICS_ENABLED:-false}"
 export N8N_PERSONALIZATION_ENABLED="${N8N_PERSONALIZATION_ENABLED:-false}"
 export N8N_USER_FOLDER="$N8N_HOME"
 export N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS="${N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS:-true}"
 export GENERIC_TIMEZONE="${GENERIC_TIMEZONE:-${TZ:-UTC}}"
 export TZ="${TZ:-$GENERIC_TIMEZONE}"
+
+# Basic auth — enabled by default to protect your n8n instance
+export N8N_BASIC_AUTH_ACTIVE="${N8N_BASIC_AUTH_ACTIVE:-true}"
+if [ "${N8N_BASIC_AUTH_ACTIVE}" = "true" ]; then
+  export N8N_BASIC_AUTH_USER="${N8N_BASIC_AUTH_USER:-admin}"
+  export N8N_BASIC_AUTH_PASSWORD="${N8N_BASIC_AUTH_PASSWORD:-}"
+  if [ -z "${N8N_BASIC_AUTH_PASSWORD:-}" ]; then
+    echo "⚠️  WARNING: N8N_BASIC_AUTH_ACTIVE=true but N8N_BASIC_AUTH_PASSWORD is not set."
+    echo "   Your n8n instance is NOT protected. Set N8N_BASIC_AUTH_PASSWORD in Secrets."
+  fi
+fi
 
 echo ""
 echo "  ╔════════════════════════════════════╗"

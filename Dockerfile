@@ -1,5 +1,7 @@
 FROM node:22-slim
 
+ARG N8N_VERSION=latest
+
 ENV DEBIAN_FRONTEND=noninteractive \
     N8N_PORT=5678 \
     HF_HUB_DISABLE_PROGRESS_BARS=1 \
@@ -14,11 +16,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-pip \
     sqlite3 \
     tini \
-    && pip3 install --no-cache-dir --break-system-packages huggingface_hub==0.34.4 \
-    && npm install -g n8n@latest \
+    && pip3 install --no-cache-dir --break-system-packages huggingface_hub \
+    && npm install -g n8n@${N8N_VERSION} \
     && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /home/node/app /home/node/.n8n && \
+    chmod 700 /home/node/.n8n && \
     chown -R node:node /home/node
 
 WORKDIR /home/node/app
