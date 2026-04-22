@@ -1,6 +1,6 @@
 ---
 title: Hugging8n
-emoji: "8"
+emoji: ♾️
 colorFrom: blue
 colorTo: indigo
 sdk: docker
