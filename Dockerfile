@@ -37,5 +37,8 @@ USER node
 
 EXPOSE 7861
 
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s \
+  CMD curl -f http://localhost:7861/health || exit 1
+
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["/home/node/app/start.sh"]

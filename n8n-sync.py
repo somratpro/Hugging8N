@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import threading
 from pathlib import Path
 
 os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
@@ -26,7 +27,7 @@ HF_USERNAME = (
 )
 BACKUP_DATASET_NAME = os.environ.get("BACKUP_DATASET_NAME", "hugging8n-backup").strip()
 HF_API = HfApi(token=HF_TOKEN) if HF_TOKEN else None
-RUNNING = True
+STOP_EVENT = threading.Event()
 
 
 def write_status(status: str, message: str) -> None:
@@ -187,8 +188,7 @@ def sync_once(last_fingerprint: str | None = None) -> str:
 
 
 def handle_signal(_sig, _frame) -> None:
-    global RUNNING
-    RUNNING = False
+    STOP_EVENT.set()
 
 
 def loop() -> int:
@@ -198,16 +198,15 @@ def loop() -> int:
     last_fingerprint = fingerprint_dir(N8N_HOME)
     write_status("configured", f"Backup loop active with {INTERVAL}s interval.")
 
-    while RUNNING:
+    while not STOP_EVENT.is_set():
         try:
             last_fingerprint = sync_once(last_fingerprint)
         except Exception as exc:
             write_status("error", f"Sync failed: {exc}")
             print(f"Sync failed: {exc}", file=sys.stderr)
-        for _ in range(INTERVAL):
-            if not RUNNING:
-                break
-            time.sleep(1)
+        
+        if STOP_EVENT.wait(INTERVAL):
+            break
 
     try:
         sync_once(None)
