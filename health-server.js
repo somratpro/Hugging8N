@@ -47,17 +47,41 @@ function renderDashboard(data) {
   };
 
   const keepAwakeHtml = data.isPrivate
-    ? `<div class="helper-summary"><strong>Private Space detected.</strong> External monitors cannot access private health URLs.</div>`
-    : `
-        <div id="uptimerobot-flow">
-            <p class="helper-text">Setup a free monitor to prevent this Space from sleeping.</p>
-            <div class="input-group">
-                <input type="password" id="ur-key" placeholder="UptimeRobot Main API Key">
-                <button id="ur-btn" onclick="setupMonitor()">Set Up Monitor</button>
+    ? `
+            <div id="uptimerobot-private-note" class="helper-summary">
+                <strong>This Space is private.</strong> External monitors cannot reliably access private HF health URLs, so keep-awake setup is only available on public Spaces.
             </div>
-            <p id="ur-status"></p>
-        </div>
-    `;
+        `
+    : `
+            <div id="uptimerobot-public-flow">
+                <div id="uptimerobot-summary" class="helper-summary">
+                    One-time setup for public Spaces. Paste your UptimeRobot <strong>Main API key</strong> to create the monitor.
+                </div>
+                <button id="uptimerobot-toggle" class="helper-toggle" type="button">
+                    Set Up Monitor
+                </button>
+                <div id="uptimerobot-shell" class="helper-shell hidden">
+                    <div class="helper-copy">
+                        Do <strong>not</strong> use the Read-only API key or a Monitor-specific API key.
+                    </div>
+                    <div class="helper-row">
+                        <input
+                            id="uptimerobot-key"
+                            class="helper-input"
+                            type="password"
+                            placeholder="Paste your UptimeRobot Main API key"
+                            autocomplete="off"
+                        />
+                        <button id="uptimerobot-btn" class="helper-button" type="button">
+                            Create Monitor
+                        </button>
+                    </div>
+                    <div class="helper-note">
+                        One-time setup. Your key is only used to create the monitor for this Space.
+                    </div>
+                </div>
+            </div>
+        `;
 
   return `
 <!DOCTYPE html>
@@ -176,29 +200,109 @@ function renderDashboard(data) {
             text-align: left;
         }
         .keep-alive h3 { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px; }
-        .helper-text { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px; }
-        .input-group { display: flex; gap: 8px; }
-        input {
-            flex: 1;
-            background: #0f172a;
-            border: 1px solid rgba(255,255,255,0.1);
-            padding: 12px;
-            border-radius: 12px;
-            color: white;
-            font-family: inherit;
+        
+        .helper-card {
+            width: 100%;
         }
-        button#ur-btn {
-            background: rgba(255,255,255,0.05);
-            border: none;
-            color: white;
-            padding: 0 16px;
-            border-radius: 12px;
-            cursor: pointer;
-            font-weight: 600;
+        .helper-copy {
+            color: var(--text-muted);
             font-size: 0.85rem;
+            line-height: 1.6;
+            margin-top: 10px;
         }
-        button#ur-btn:hover { background: rgba(255,255,255,0.1); }
-        #ur-status { font-size: 0.8rem; margin-top: 8px; }
+        .helper-copy strong {
+            color: var(--text);
+        }
+        .helper-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+        .helper-input {
+            flex: 1;
+            min-width: 240px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--text);
+            border-radius: 12px;
+            padding: 12px 16px;
+            font: inherit;
+        }
+        .helper-input::placeholder {
+            color: var(--text-muted);
+        }
+        .helper-button {
+            background: var(--accent);
+            color: #fff;
+            border: 0;
+            border-radius: 12px;
+            padding: 12px 18px;
+            font: inherit;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .helper-button:disabled {
+            opacity: 0.6;
+            cursor: wait;
+        }
+        .hidden {
+            display: none !important;
+        }
+        .helper-note {
+            margin-top: 10px;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+        }
+        .helper-result {
+            margin-top: 14px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            display: none;
+        }
+        .helper-result.ok {
+            display: block;
+            background: rgba(34, 197, 94, 0.1);
+            color: var(--success);
+        }
+        .helper-result.error {
+            display: block;
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--error);
+        }
+        .helper-shell {
+            margin-top: 12px;
+        }
+        .helper-summary {
+            margin-top: 14px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+        .helper-summary strong {
+            color: var(--text);
+        }
+        .helper-summary.success {
+            background: rgba(34, 197, 94, 0.08);
+        }
+        .helper-toggle {
+            margin-top: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 10px 16px;
+            font: inherit;
+            font-weight: 600;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -228,37 +332,104 @@ function renderDashboard(data) {
 
         <a href="/app/" target="_blank" class="btn-primary">Open n8n Editor</a>
 
-        <div class="keep-alive">
-            <h3>Keep Alive</h3>
+        <div class="keep-alive helper-card">
+            <span class="stat-label">Keep Space Awake</span>
             ${keepAwakeHtml}
+            <div id="uptimerobot-result" class="helper-result"></div>
         </div>
     </div>
 
     <script>
-        async function setupMonitor() {
-            const key = document.getElementById('ur-key').value;
-            const btn = document.getElementById('ur-btn');
-            const status = document.getElementById('ur-status');
-            if (!key) return alert('Please enter an API key');
-            
-            btn.disabled = true;
-            btn.innerText = 'Setting up...';
-            
+        function getCurrentSearch() {
+            return window.location.search || '';
+        }
+
+        const monitorStateKey = 'hugging8n_uptimerobot_setup_v1';
+        const KEEP_AWAKE_PRIVATE = ${data.isPrivate ? "true" : "false"};
+
+        function setMonitorUiState(isConfigured) {
+            const summary = document.getElementById('uptimerobot-summary');
+            const shell = document.getElementById('uptimerobot-shell');
+            const toggle = document.getElementById('uptimerobot-toggle');
+
+            if (!summary || !shell || !toggle) return;
+
+            if (isConfigured) {
+                summary.classList.add('success');
+                summary.innerHTML = '<strong>Already set up.</strong> Your UptimeRobot monitor should keep this public Space awake.';
+                shell.classList.add('hidden');
+                toggle.textContent = 'Set Up Again';
+            } else {
+                summary.classList.remove('success');
+                summary.innerHTML = 'One-time setup for public Spaces. Paste your UptimeRobot <strong>Main API key</strong> to create the monitor.';
+                toggle.textContent = 'Set Up Monitor';
+            }
+        }
+
+        function restoreMonitorUiState() {
             try {
-                const res = await fetch('/uptimerobot/setup', {
+                const value = window.localStorage.getItem(monitorStateKey);
+                setMonitorUiState(value === 'done');
+            } catch {
+                setMonitorUiState(false);
+            }
+        }
+
+        function toggleMonitorSetup() {
+            const shell = document.getElementById('uptimerobot-shell');
+            shell.classList.toggle('hidden');
+        }
+
+        async function setupUptimeRobot() {
+            const input = document.getElementById('uptimerobot-key');
+            const button = document.getElementById('uptimerobot-btn');
+            const result = document.getElementById('uptimerobot-result');
+            const apiKey = input.value.trim();
+
+            if (!apiKey) {
+                result.className = 'helper-result error';
+                result.textContent = 'Paste your UptimeRobot Main API key first.';
+                return;
+            }
+
+            button.disabled = true;
+            button.textContent = 'Creating...';
+            result.className = 'helper-result';
+            result.textContent = '';
+
+            try {
+                const res = await fetch('/uptimerobot/setup' + getCurrentSearch(), {
                     method: 'POST',
-                    body: JSON.stringify({ apiKey: key })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ apiKey })
                 });
                 const data = await res.json();
-                status.innerText = data.message;
-                status.style.color = res.ok ? '#22c55e' : '#ef4444';
-            } catch (e) {
-                status.innerText = 'Connection error.';
-                status.style.color = '#ef4444';
+
+                if (!res.ok) {
+                    throw new Error(data.message || 'Failed to create monitor.');
+                }
+
+                result.className = 'helper-result ok';
+                result.textContent = data.message || 'UptimeRobot monitor is ready.';
+                input.value = '';
+                try {
+                    window.localStorage.setItem(monitorStateKey, 'done');
+                } catch {}
+                setMonitorUiState(true);
+                document.getElementById('uptimerobot-shell').classList.add('hidden');
+            } catch (error) {
+                result.className = 'helper-result error';
+                result.textContent = error.message || 'Failed to create monitor.';
             } finally {
-                btn.disabled = false;
-                btn.innerText = 'Set Up Monitor';
+                button.disabled = false;
+                button.textContent = 'Create Monitor';
             }
+        }
+
+        if (!KEEP_AWAKE_PRIVATE) {
+            restoreMonitorUiState();
+            document.getElementById('uptimerobot-btn').addEventListener('click', setupUptimeRobot);
+            document.getElementById('uptimerobot-toggle').addEventListener('click', toggleMonitorSetup);
         }
     </script>
 </body>
@@ -302,6 +473,89 @@ async function resolveSpaceIsPrivate(req) {
   }
 }
 
+function readRequestBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = "";
+    req.on("data", (chunk) => {
+      body += chunk;
+      if (body.length > 1024 * 64) {
+        reject(new Error("Request too large"));
+        req.destroy();
+      }
+    });
+    req.on("end", () => resolve(body));
+    req.on("error", reject);
+  });
+}
+
+function postUptimeRobot(path, form) {
+  const body = new URLSearchParams(form).toString();
+  return new Promise((resolve, reject) => {
+    const request = https.request(
+      {
+        hostname: "api.uptimerobot.com",
+        port: 443,
+        method: "POST",
+        path,
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Content-Length": Buffer.byteLength(body),
+        },
+      },
+      (response) => {
+        let raw = "";
+        response.setEncoding("utf8");
+        response.on("data", (chunk) => {
+          raw += chunk;
+        });
+        response.on("end", () => {
+          try {
+            resolve(JSON.parse(raw));
+          } catch {
+            reject(new Error("Unexpected response from UptimeRobot"));
+          }
+        });
+      },
+    );
+    request.on("error", reject);
+    request.write(body);
+    request.end();
+  });
+}
+
+async function createUptimeRobotMonitor(apiKey, host) {
+  const cleanHost = String(host || "")
+    .replace(/^https?:\/\//, "")
+    .replace(/\/.*$/, "");
+  if (!cleanHost) throw new Error("Missing Space host.");
+  const monitorUrl = `https://${cleanHost}/health`;
+  const existing = await postUptimeRobot("/v2/getMonitors", {
+    api_key: apiKey,
+    format: "json",
+    logs: "0",
+    response_times: "0",
+    response_times_limit: "1",
+  });
+  const existingMonitor = Array.isArray(existing.monitors)
+    ? existing.monitors.find((m) => m.url === monitorUrl)
+    : null;
+  if (existingMonitor) {
+    return { created: false, message: `Monitor already exists for ${monitorUrl}` };
+  }
+  const created = await postUptimeRobot("/v2/newMonitor", {
+    api_key: apiKey,
+    format: "json",
+    type: "1",
+    friendly_name: `Hugging8n ${cleanHost}`,
+    url: monitorUrl,
+    interval: "300",
+  });
+  if (created.stat !== "ok") {
+    throw new Error(created?.error?.message || "Failed to create monitor.");
+  }
+  return { created: true, message: `Monitor created for ${monitorUrl}` };
+}
+
 const server = http.createServer(async (req, res) => {
   const url = parseRequestUrl(req.url);
   const pathname = url.pathname;
@@ -321,71 +575,22 @@ const server = http.createServer(async (req, res) => {
     );
   }
   if (pathname === "/uptimerobot/setup" && req.method === "POST") {
-    let body = "";
-    req.on("data", (c) => (body += c));
-    req.on("end", async () => {
+    void (async () => {
       try {
-        const { apiKey } = JSON.parse(body);
-        const host = req.headers.host;
-        const monitorUrl = `https://${host}/health`;
-        const post = (p, d) =>
-          new Promise((res, rej) => {
-            const r = https.request(
-              {
-                hostname: "api.uptimerobot.com",
-                port: 443,
-                path: p,
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/x-www-form-urlencoded",
-                },
-              },
-              (r) => {
-                let b = "";
-                r.on("data", (c) => (b += c));
-                r.on("end", () => res(JSON.parse(b)));
-              },
-            );
-            r.on("error", rej);
-            r.write(new URLSearchParams(d).toString());
-            r.end();
-          });
-
-        const existing = await post("/v2/getMonitors", {
-          api_key: apiKey,
-          format: "json",
-        });
-        if (existing.monitors?.some((m) => m.url === monitorUrl)) {
-          res.writeHead(200);
-          return res.end(
-            JSON.stringify({ message: "Monitor already exists." }),
-          );
+        const body = await readRequestBody(req);
+        const { apiKey } = JSON.parse(body || "{}");
+        if (!apiKey) {
+          res.writeHead(400, { "Content-Type": "application/json" });
+          return res.end(JSON.stringify({ message: "API key is required." }));
         }
-        const created = await post("/v2/newMonitor", {
-          api_key: apiKey,
-          format: "json",
-          type: "1",
-          friendly_name: `Hugging8n ${host}`,
-          url: monitorUrl,
-          interval: "300",
-        });
-        if (created.stat === "ok") {
-          res.writeHead(200);
-          return res.end(
-            JSON.stringify({ message: "Monitor created successfully!" }),
-          );
-        }
-        res.writeHead(400);
-        res.end(
-          JSON.stringify({
-            message: created.error?.message || "Failed to create monitor.",
-          }),
-        );
+        const result = await createUptimeRobotMonitor(apiKey, req.headers.host);
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify(result));
       } catch (e) {
-        res.writeHead(400);
-        res.end(JSON.stringify({ message: "Invalid request." }));
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ message: e.message || "Invalid request." }));
       }
-    });
+    })();
     return;
   }
   if (pathname === "/" || pathname === "/dashboard") {
