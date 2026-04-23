@@ -623,6 +623,7 @@ const server = http.createServer(async (req, res) => {
     pathname.startsWith("/logout") ||
     pathname.startsWith("/nodes/") ||
     pathname.startsWith("/templates/") ||
+    pathname.startsWith("/workflow") ||
     pathname.startsWith("/healthz");
 
 
