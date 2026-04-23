@@ -7,7 +7,6 @@ const PORT = Number(process.env.PUBLIC_PORT || 7861);
 const TARGET_PORT = Number(process.env.N8N_PORT || 5678);
 const TARGET_HOST = "127.0.0.1";
 const SYNC_STATUS_FILE = "/tmp/hugging8n-sync-status.json";
-const APP_BASE = "/app";
 const startTime = Date.now();
 
 function parseRequestUrl(url) {
@@ -326,11 +325,11 @@ function renderDashboard(data) {
                 <div class="stat-label">Sync Status</div>
                 ${getBadge(data.sync.status)}
             </div>
-            <div class="stat-value" style="font-size: 1rem; margin-bottom: 4px;">Last Activity: ${data.sync.timestamp.split('.')[0]}Z</div>
+            <div class="stat-value" style="font-size: 1rem; margin-bottom: 4px;">Last Activity: ${data.sync.timestamp.split(".")[0]}Z</div>
             <div class="stat-label" style="text-transform: none;">${data.sync.message}</div>
         </div>
 
-        <a href="/app/" target="_blank" class="btn-primary">Open n8n Editor</a>
+        <a href="/home/workflows" target="_blank" class="btn-primary">Open n8n Editor</a>
 
         <div class="keep-alive helper-card">
             <span class="stat-label">Keep Space Awake</span>
@@ -540,7 +539,10 @@ async function createUptimeRobotMonitor(apiKey, host) {
     ? existing.monitors.find((m) => m.url === monitorUrl)
     : null;
   if (existingMonitor) {
-    return { created: false, message: `Monitor already exists for ${monitorUrl}` };
+    return {
+      created: false,
+      message: `Monitor already exists for ${monitorUrl}`,
+    };
   }
   const created = await postUptimeRobot("/v2/newMonitor", {
     api_key: apiKey,
@@ -620,13 +622,10 @@ const server = http.createServer(async (req, res) => {
     pathname.startsWith("/signup") ||
     pathname.startsWith("/logout") ||
     pathname.startsWith("/nodes/") ||
+    pathname.startsWith("/templates/") ||
     pathname.startsWith("/healthz");
 
-  // Special case: /app/ redirects to /home/workflows
-  if (pathname === "/app" || pathname === "/app/") {
-    res.writeHead(302, { Location: "/home/workflows" });
-    return res.end();
-  }
+
 
   if (isN8nPath) {
     const proxyHeaders = {
@@ -653,7 +652,12 @@ const server = http.createServer(async (req, res) => {
 
     proxyReq.on("error", () => {
       res.writeHead(503, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ status: "starting", message: "n8n is initializing..." }));
+      res.end(
+        JSON.stringify({
+          status: "starting",
+          message: "n8n is initializing...",
+        }),
+      );
     });
 
     req.pipe(proxyReq);
