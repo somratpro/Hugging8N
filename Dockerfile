@@ -5,7 +5,8 @@ ARG N8N_VERSION=latest
 ENV DEBIAN_FRONTEND=noninteractive \
     N8N_PORT=5678 \
     HF_HUB_DISABLE_PROGRESS_BARS=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PIP_ROOT_USER_ACTION=ignore
 
 RUN apt-get update && apt-get install -y -q --no-install-recommends \
     ca-certificates \

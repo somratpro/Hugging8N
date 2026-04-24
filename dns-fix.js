@@ -2,8 +2,8 @@
  * DNS fix preload script for HF Spaces.
  *
  * Patches Node.js dns.lookup to:
- * 1. Try system DNS first
- * 2. Fall back to DNS-over-HTTPS (Cloudflare) if system DNS fails
+ * 1. Try DNS-over-HTTPS (Cloudflare) first to bypass DNS sinkholing
+ * 2. Fall back to system DNS if DoH fails
  *    (This is needed because HF Spaces intercepts/blocks some domains like
  *    WhatsApp web or Telegram API via standard UDP DNS).
  *
@@ -83,26 +83,16 @@ dns.lookup = function patchedLookup(hostname, options, callback) {
     return origLookup.call(dns, hostname, options, callback);
   }
 
-  // 1) Try system DNS first
-  origLookup.call(dns, hostname, options, (err, address, family) => {
-    if (!err && address) {
-      return callback(null, address, family);
+  // 1) Try DoH first to bypass HF DNS sinkholing (which returns fake IPs instead of ENOTFOUND)
+  dohResolve(hostname, (dohErr, ip) => {
+    if (!dohErr && ip) {
+      if (options.all) {
+        return callback(null, [{ address: ip, family: 4 }]);
+      }
+      return callback(null, ip, 4);
     }
 
-    // 2) System DNS failed with ENOTFOUND or EAI_AGAIN — fall back to DoH
-    if (err && (err.code === "ENOTFOUND" || err.code === "EAI_AGAIN")) {
-      dohResolve(hostname, (dohErr, ip) => {
-        if (dohErr || !ip) {
-          return callback(err); // Return original error
-        }
-        if (options.all) {
-          return callback(null, [{ address: ip, family: 4 }]);
-        }
-        callback(null, ip, 4);
-      });
-    } else {
-      // Other DNS errors — pass through
-      callback(err, address, family);
-    }
+    // 2) Fall back to system DNS if DoH fails
+    origLookup.call(dns, hostname, options, callback);
   });
 };
