@@ -67,15 +67,16 @@ if (PROXY_URL) {
           newOptions._proxied = true;
           newOptions.protocol = "https:";
           newOptions.hostname = proxy.hostname;
-          newOptions.host = proxy.host;
           newOptions.port = proxy.port || 443;
           
-          // CRITICAL: Set servername for correct TLS/SNI handshake with Cloudflare
+          // CRITICAL: Force fresh TLS handshake for the new domain
           newOptions.servername = proxy.hostname;
+          delete newOptions.host;  // Prefer hostname
+          delete newOptions.agent; // Force a new agent to prevent connection reuse issues
 
           // Merge and update headers
           newOptions.headers = {
-            ...(headers || {}),
+            ...(newOptions.headers || {}),
             "host": proxy.host,
             "x-target-host": hostname
           };
