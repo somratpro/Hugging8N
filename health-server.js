@@ -662,6 +662,8 @@ server.on("upgrade", (req, socket, head) => {
   proxySocket.on("error", () => socket.destroy());
 });
 
+server.timeout = 0;
+server.keepAliveTimeout = 0;
 server.listen(PORT, "0.0.0.0", () =>
   console.log(`Namespace Proxy on ${PORT} -> n8n on ${TARGET_PORT}`),
 );
