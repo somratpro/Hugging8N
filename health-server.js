@@ -436,11 +436,8 @@ function renderDashboard(data) {
 }
 
 async function resolveSpaceIsPrivate(req) {
-  const host = req.headers.host || "";
-  const match = host.match(/^([^.]+)-([^.]+)\.hf\.space$/);
-  if (!match) return false;
-  const user = match[1];
-  const space = match[2];
+  const host = (req.headers.host || "").split(":")[0];
+  if (!host.endsWith(".hf.space")) return false;
 
   const params = new URLSearchParams(req.url.split("?")[1] || "");
   const token = params.get("__sign");

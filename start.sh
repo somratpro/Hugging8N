@@ -66,9 +66,20 @@ fi
 
 cleanup() {
   echo "Stopping Hugging8n..."
-  [ -n "${SYNC_PID:-}" ] && kill "$SYNC_PID" 2>/dev/null || true
-  [ -n "${N8N_PID:-}" ] && kill "$N8N_PID" 2>/dev/null || true
   [ -n "${PROXY_PID:-}" ] && kill "$PROXY_PID" 2>/dev/null || true
+
+  # Stop the background sync loop gracefully
+  if [ -n "${SYNC_PID:-}" ]; then
+    kill "$SYNC_PID" 2>/dev/null || true
+    wait "$SYNC_PID" 2>/dev/null || true
+  fi
+
+  # Wait for n8n to finish its graceful shutdown to ensure DB state is flushed
+  if [ -n "${N8N_PID:-}" ]; then
+    kill -TERM "$N8N_PID" 2>/dev/null || true
+    wait "$N8N_PID" 2>/dev/null || true
+  fi
+
   if [ -n "${HF_TOKEN:-}" ]; then
     echo "Running final backup pass..."
     python3 "$APP_DIR/n8n-sync.py" sync-once || true

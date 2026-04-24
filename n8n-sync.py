@@ -208,11 +208,6 @@ def loop() -> int:
         if STOP_EVENT.wait(INTERVAL):
             break
 
-    try:
-        sync_once(None)
-    except Exception as exc:
-        write_status("error", f"Final sync failed: {exc}")
-        print(f"Final sync failed: {exc}", file=sys.stderr)
     return 0
 
 
