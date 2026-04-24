@@ -14,7 +14,17 @@
 console.error("[DNS-FIX] dns-fix.js preload script loaded successfully.");
 
 const dns = require("dns");
+const http = require("http");
 const https = require("https");
+
+// ── Keep-Alive Fix ────────────────────────────────────────────────────────────
+// Node.js 22 changed the global HTTP/HTTPS agents to default keepAlive=true.
+// On HF Spaces, the internal network proxy silently kills idle TCP sockets
+// after ~60s. When n8n tries to reuse a stale socket it gets ECONNRESET.
+// Disabling keep-alive forces a fresh TCP connection for every request.
+http.globalAgent = new http.Agent({ keepAlive: false });
+https.globalAgent = new https.Agent({ keepAlive: false });
+// ─────────────────────────────────────────────────────────────────────────────
 
 // In-memory cache for runtime DoH resolutions
 const runtimeCache = new Map(); // hostname -> { ip, expiry }
