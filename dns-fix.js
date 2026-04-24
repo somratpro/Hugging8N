@@ -1,121 +1,129 @@
 "use strict";
 console.error("[DNS-FIX] Loaded — DoH resolver + tls/net logging active.");
-const dns = require("dns");
+const http = require("http");
 const https = require("https");
-const tls = require("tls");
-const net = require("net");
+const { PassThrough } = require("stream");
 
-const _origTlsConnect = tls.connect;
-tls.connect = function (...args) {
-  let options = {};
-  if (typeof args[0] === 'object') {
-    options = args[0];
-  } else if (typeof args[1] === 'object') {
-    options = args[1];
-  }
-  const host = options.host || options.servername;
-  console.error(`[DNS-FIX] tls.connect -> host: ${host}, ip: ${options.host || 'unknown'}, port: ${options.port}`);
-  const socket = _origTlsConnect.apply(this, args);
-  socket.on('secureConnect', () => console.error(`[DNS-FIX] TLS connected ✓ ${host}`));
-  socket.on('error', err => console.error(`[DNS-FIX] TLS error ✗ ${host} - ${err.code}: ${err.message}`));
-  return socket;
-};
+const blockedDomains = ["api.telegram.org", "discord.com", "discordapp.com", "web.whatsapp.com"];
 
-const _origNetConnect = net.connect;
-net.connect = function (...args) {
-  let options = {};
-  if (typeof args[0] === 'object') options = args[0];
-  console.error(`[DNS-FIX] net.connect -> host: ${options.host}, port: ${options.port}`);
-  return _origNetConnect.apply(this, args);
-};
-
-const runtimeCache = new Map();
-function dohResolve(hostname, callback) {
-  const cached = runtimeCache.get(hostname);
-  if (cached && cached.expiry > Date.now()) return callback(null, cached.ip);
-  const url = `https://1.1.1.1/dns-query?name=${encodeURIComponent(hostname)}&type=A`;
-  const req = https.get(url, { headers: { Accept: "application/dns-json" }, timeout: 15000 }, (res) => {
-    let body = "";
-    res.on("data", (c) => (body += c));
-    res.on("end", () => {
-      try {
-        const data = JSON.parse(body);
-        const aRecords = (data.Answer || []).filter((a) => a.type === 1);
-        if (aRecords.length === 0) return callback(new Error(`DoH: no A record for ${hostname}`));
-        const ip = aRecords[0].data;
-        const ttl = Math.max((aRecords[0].TTL || 300) * 1000, 60000);
-        runtimeCache.set(hostname, { ip, expiry: Date.now() + ttl });
-        callback(null, ip);
-      } catch (e) {
-        callback(new Error(`DoH parse error: ${e.message}`));
-      }
-    });
-  });
-  req.on("error", (e) => callback(new Error(`DoH request failed: ${e.message}`)));
-  req.on("timeout", () => { req.destroy(); callback(new Error("DoH request timed out")); });
+function isBlocked(hostname) {
+  return hostname && blockedDomains.some((d) => hostname === d || hostname.endsWith(`.${d}`));
 }
 
-const origLookup = dns.lookup;
-dns.lookup = function patchedLookup(hostname, options, callback) {
-  if (typeof options === "function") {
-    callback = options;
-    options = {};
-  }
-  if (typeof options === "number") {
-    options = { family: options };
-  }
-  options = options || {};
+// Monkey-patch http.request and https.request
+const _origHttpRequest = http.request;
+const _origHttpsRequest = https.request;
 
-  if (
-    !hostname ||
-    hostname === "localhost" ||
-    hostname === "0.0.0.0" ||
-    hostname === "127.0.0.1" ||
-    hostname === "::1" ||
-    /^\d+\.\d+\.\d+\.\d+$/.test(hostname) ||
-    /^::/.test(hostname)
-  ) {
-    return origLookup.call(dns, hostname, options, callback);
+function transparentProxyRequest(protocol, origFn, ...args) {
+  let options = args[0];
+  let callback = args[1];
+
+  if (typeof options === "string") {
+    try {
+      options = new URL(options);
+    } catch {
+      return origFn.apply(this, args);
+    }
+  } else if (options instanceof URL) {
+    // Already a URL
+  } else {
+    // Object options
+    options = { ...options };
   }
 
-  // FORCE DoH for known blocked domains on HF Spaces
-  const blockedDomains = ["api.telegram.org", "discord.com", "discordapp.com"];
-  const isBlocked = blockedDomains.some((d) => hostname === d || hostname.endsWith(`.${d}`));
+  if (typeof callback !== "function" && typeof args[2] === "function") {
+    callback = args[2];
+  }
 
-  if (isBlocked) {
-    console.error(`[DNS-FIX] Forcing DoH bypass for blocked domain: ${hostname}`);
-    return dohResolve(hostname, (dohErr, ip) => {
-      if (dohErr || !ip) {
-        return origLookup.call(dns, hostname, options, callback); // Last resort fallback
-      }
-      if (options.all) {
-        return callback(null, [{ address: ip, family: 4 }]);
-      }
-      callback(null, ip, 4);
+  const hostname = options.hostname || options.host;
+  const port = options.port || (protocol === "https:" ? 443 : 80);
+  const path = options.path || options.pathname || "/";
+
+  if (isBlocked(hostname)) {
+    console.error(`[DNS-FIX] Transparently proxying ${protocol}//${hostname}${path} via fetch()`);
+
+    const requestUrl = `${protocol}//${hostname}${path}`;
+    const requestHeaders = { ...options.headers };
+    
+    // We need to return a ClientRequest-like object (a Writable stream)
+    const reqStream = new PassThrough();
+    const resStream = new PassThrough();
+    
+    // Buffer the request body
+    let requestBody = Buffer.alloc(0);
+    reqStream.on("data", (chunk) => {
+      requestBody = Buffer.concat([requestBody, chunk]);
     });
+
+    reqStream.on("finish", async () => {
+      try {
+        const fetchRes = await fetch(requestUrl, {
+          method: options.method || "GET",
+          headers: requestHeaders,
+          body: options.method !== "GET" && options.method !== "HEAD" ? requestBody : undefined,
+          redirect: "manual",
+        });
+
+        // Construct an IncomingMessage-like object
+        resStream.statusCode = fetchRes.status;
+        resStream.statusMessage = fetchRes.statusText;
+        resStream.headers = Object.fromEntries(fetchRes.headers.entries());
+        resStream.rawHeaders = [];
+        for (const [k, v] of fetchRes.headers.entries()) {
+          resStream.rawHeaders.push(k, v);
+        }
+
+        if (callback) callback(resStream);
+        reqStream.emit("response", resStream);
+
+        if (fetchRes.body) {
+          const reader = fetchRes.body.getReader();
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            resStream.write(value);
+          }
+        }
+        resStream.end();
+      } catch (err) {
+        console.error(`[DNS-FIX] Proxy error for ${requestUrl}: ${err.message}`);
+        reqStream.emit("error", err);
+      }
+    });
+
+    // Mock ClientRequest methods
+    reqStream.abort = () => reqStream.destroy();
+    reqStream.end = (chunk) => {
+      if (chunk) reqStream.write(chunk);
+      reqStream.end();
+    };
+    reqStream.setTimeout = (ms, cb) => { if (cb) setTimeout(cb, ms); return reqStream; };
+    reqStream.setNoDelay = () => reqStream;
+    reqStream.setSocketKeepAlive = () => reqStream;
+
+    return reqStream;
   }
 
-  // 1) Try system DNS first for everything else
-  origLookup.call(dns, hostname, options, (err, address, family) => {
-    if (!err && address) {
-      return callback(null, address, family);
-    }
+  return origFn.apply(this, args);
+}
 
-    // 2) System DNS failed with ENOTFOUND or EAI_AGAIN — fall back to DoH
-    if (err && (err.code === "ENOTFOUND" || err.code === "EAI_AGAIN")) {
-      console.error(`[DNS-FIX] Fallback DoH triggered for ${hostname}`);
-      dohResolve(hostname, (dohErr, ip) => {
-        if (dohErr || !ip) {
-          return callback(err); // Return original error
-        }
-        if (options.all) {
-          return callback(null, [{ address: ip, family: 4 }]);
-        }
-        callback(null, ip, 4);
-      });
-    } else {
-      // Other DNS errors — pass through
-      callback(err, address, family);
-    }
-  });
+http.request = function (...args) {
+  return transparentProxyRequest("http:", _origHttpRequest, ...args);
+};
+
+https.request = function (...args) {
+  return transparentProxyRequest("https:", _origHttpsRequest, ...args);
+};
+
+// Also patch http.get and https.get as they often bypass request
+http.get = function (...args) {
+  const req = http.request(...args);
+  req.end();
+  return req;
+};
+
+https.get = function (...args) {
+  const req = https.request(...args);
+  req.end();
+  return req;
 };
