@@ -22,6 +22,7 @@ secrets:
 - 💾 **Persistent Backup:** Workflows and credentials back up automatically to a private HF Dataset.
 - 🔐 **Secure by Default:** Uses n8n v2's built-in user management. No more insecure environment variables.
 - 🌐 **Premium Dashboard:** Live status monitoring, uptime tracking, and integrated keep-alive tools.
+- 🛠️ **Built-in Connectivity Fixes:** Automatic DNS-over-HTTPS (DoH) and Transparent Outbound Proxying to bypass platform networking blocks.
 - ⏰ **Built-in Keep-Alive:** Easily setup UptimeRobot directly from the dashboard UI.
 - 🐳 **Optimized Infrastructure:** Clean startup logs, minimal resource usage, and production-ready proxy.
 
@@ -51,6 +52,8 @@ You can customize Hugging8n using Environment Variables (Settings > Variables):
 | `SYNC_INTERVAL` | `180` | Backup frequency in seconds. |
 | `GENERIC_TIMEZONE` | `UTC` | Timezone for n8n. |
 | `N8N_LOG_LEVEL` | `error` | Set to `info` for more verbose logs. |
+| `OUTBOUND_PROXY_URL` | - | Your Cloudflare Worker URL (to bypass Discord/Telegram blocks). |
+| `OUTBOUND_PROXY_DOMAINS` | (default) | Comma-separated list of domains to proxy. Use `*` to proxy everything. |
 | `SPACE_HOST_OVERRIDE` | - | Override the detected host if using a custom domain. |
 
 ## 🔐 Authentication & Security
@@ -68,10 +71,10 @@ Hugging8n automatically creates and maintains a private dataset in your Hugging 
 
 ## ⚠️ Known Limitations & Workarounds
 
-**Discord Webhooks**
-Hugging Face officially blocks outgoing connections to Discord on Free Tier Spaces. To use the Discord node, you must route your traffic through a simple, free proxy.
+**External Connectivity (Telegram/Discord/WhatsApp)**
+Hugging Face officially blocks outgoing connections to specific services on Free Tier Spaces. Hugging8n includes a transparent proxy system to bypass this automatically.
 
-👉 **[Read the Guide: How to Create a Free Discord Proxy in 2 minutes](./DISCORD_PROXY_GUIDE.md)**
+👉 **[Read the Outbound Proxy Guide](./OUTBOUND_PROXY_GUIDE.md)**
 *(Upgrading to a paid Space removes this firewall restriction entirely).*
 
 ## 🏗️ Architecture
