@@ -25,30 +25,39 @@ function dohResolve(hostname, callback) {
     return callback(null, cached.ip);
   }
 
-  const url = `https://1.1.1.1/dns-query?name=${encodeURIComponent(hostname)}&type=A`;
-  const req = https.get(
-    url,
-    { headers: { Accept: "application/dns-json" }, timeout: 15000 },
-    (res) => {
-      let body = "";
-      res.on("data", (c) => (body += c));
-      res.on("end", () => {
-        try {
-          const data = JSON.parse(body);
-          const aRecords = (data.Answer || []).filter((a) => a.type === 1);
-          if (aRecords.length === 0) {
-            return callback(new Error(`DoH: no A record for ${hostname}`));
-          }
-          const ip = aRecords[0].data;
-          const ttl = Math.max((aRecords[0].TTL || 300) * 1000, 60000);
-          runtimeCache.set(hostname, { ip, expiry: Date.now() + ttl });
-          callback(null, ip);
-        } catch (e) {
-          callback(new Error(`DoH parse error: ${e.message}`));
+  // Use Cloudflare DNS-over-HTTPS via direct IP to avoid DNS lookup for the resolver itself
+  const options = {
+    hostname: "1.1.1.1",
+    port: 443,
+    path: `/dns-query?name=${encodeURIComponent(hostname)}&type=A`,
+    method: "GET",
+    headers: { Accept: "application/dns-json" },
+    timeout: 10000,
+    servername: "cloudflare-dns.com", // Set SNI
+  };
+
+  const req = https.get(options, (res) => {
+    let body = "";
+    res.on("data", (c) => (body += c));
+    res.on("end", () => {
+      try {
+        if (res.statusCode !== 200) {
+          return callback(new Error(`DoH: server returned status ${res.statusCode}`));
         }
-      });
-    }
-  );
+        const data = JSON.parse(body);
+        const aRecords = (data.Answer || []).filter((a) => a.type === 1);
+        if (aRecords.length === 0) {
+          return callback(new Error(`DoH: no A record for ${hostname}`));
+        }
+        const ip = aRecords[0].data;
+        const ttl = Math.max((aRecords[0].TTL || 300) * 1000, 60000);
+        runtimeCache.set(hostname, { ip, expiry: Date.now() + ttl });
+        callback(null, ip);
+      } catch (e) {
+        callback(new Error(`DoH parse error: ${e.message}`));
+      }
+    });
+  });
   req.on("error", (e) => callback(new Error(`DoH request failed: ${e.message}`)));
   req.on("timeout", () => {
     req.destroy();
