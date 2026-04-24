@@ -11,6 +11,8 @@
  */
 "use strict";
 
+console.error("[DNS-FIX] dns-fix.js preload script loaded successfully.");
+
 const dns = require("dns");
 const https = require("https");
 
