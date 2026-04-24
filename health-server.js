@@ -629,17 +629,36 @@ const server = http.createServer(async (req, res) => {
     (proxyRes) => {
       res.writeHead(proxyRes.statusCode, proxyRes.headers);
       proxyRes.pipe(res);
+      proxyRes.on("error", (err) => {
+        console.error("proxyRes error:", err);
+        res.end();
+      });
     },
   );
 
-  proxyReq.on("error", () => {
-    res.writeHead(503, { "Content-Type": "application/json" });
-    res.end(
-      JSON.stringify({
-        status: "starting",
-        message: "n8n is initializing...",
-      }),
-    );
+  req.on("error", (err) => {
+    console.error("req error:", err);
+    proxyReq.destroy();
+  });
+
+  res.on("error", (err) => {
+    console.error("res error:", err);
+    proxyReq.destroy();
+  });
+
+  proxyReq.on("error", (err) => {
+    console.error("proxyReq error:", err);
+    if (!res.headersSent) {
+      res.writeHead(503, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify({
+          status: "starting",
+          message: "n8n is initializing... or connection failed",
+        }),
+      );
+    } else {
+      res.end();
+    }
   });
 
   req.pipe(proxyReq);
