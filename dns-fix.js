@@ -57,22 +57,64 @@ function dohResolve(hostname, callback) {
 
 const origLookup = dns.lookup;
 dns.lookup = function patchedLookup(hostname, options, callback) {
-  if (typeof options === "function") { callback = options; options = {}; }
-  if (typeof options === "number") options = { family: options };
+  if (typeof options === "function") {
+    callback = options;
+    options = {};
+  }
+  if (typeof options === "number") {
+    options = { family: options };
+  }
   options = options || {};
-  if (!hostname || hostname === "localhost" || hostname === "0.0.0.0" || hostname === "127.0.0.1" || hostname === "::1" || /^\d+\.\d+\.\d+\.\d+$/.test(hostname) || /^::/.test(hostname)) {
+
+  if (
+    !hostname ||
+    hostname === "localhost" ||
+    hostname === "0.0.0.0" ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1" ||
+    /^\d+\.\d+\.\d+\.\d+$/.test(hostname) ||
+    /^::/.test(hostname)
+  ) {
     return origLookup.call(dns, hostname, options, callback);
   }
+
+  // FORCE DoH for known blocked domains on HF Spaces
+  const blockedDomains = ["api.telegram.org", "discord.com", "discordapp.com"];
+  const isBlocked = blockedDomains.some((d) => hostname === d || hostname.endsWith(`.${d}`));
+
+  if (isBlocked) {
+    console.error(`[DNS-FIX] Forcing DoH bypass for blocked domain: ${hostname}`);
+    return dohResolve(hostname, (dohErr, ip) => {
+      if (dohErr || !ip) {
+        return origLookup.call(dns, hostname, options, callback); // Last resort fallback
+      }
+      if (options.all) {
+        return callback(null, [{ address: ip, family: 4 }]);
+      }
+      callback(null, ip, 4);
+    });
+  }
+
+  // 1) Try system DNS first for everything else
   origLookup.call(dns, hostname, options, (err, address, family) => {
-    if (!err && address) return callback(null, address, family);
+    if (!err && address) {
+      return callback(null, address, family);
+    }
+
+    // 2) System DNS failed with ENOTFOUND or EAI_AGAIN — fall back to DoH
     if (err && (err.code === "ENOTFOUND" || err.code === "EAI_AGAIN")) {
       console.error(`[DNS-FIX] Fallback DoH triggered for ${hostname}`);
       dohResolve(hostname, (dohErr, ip) => {
-        if (dohErr || !ip) return callback(err);
-        if (options.all) return callback(null, [{ address: ip, family: 4 }]);
+        if (dohErr || !ip) {
+          return callback(err); // Return original error
+        }
+        if (options.all) {
+          return callback(null, [{ address: ip, family: 4 }]);
+        }
         callback(null, ip, 4);
       });
     } else {
+      // Other DNS errors — pass through
       callback(err, address, family);
     }
   });
