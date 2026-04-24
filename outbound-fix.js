@@ -14,13 +14,10 @@ if (PROXY_URL && !PROXY_URL.startsWith("http://") && !PROXY_URL.startsWith("http
   PROXY_URL = `https://${PROXY_URL}`;
 }
 
-const BLOCKED_DOMAINS = [
-  "api.telegram.org",
-  "discord.com",
-  "discordapp.com",
-  "gateway.discord.gg",
-  "status.discord.com"
-];
+// Allow user to define what to proxy. Use "*" to proxy everything except internal HF traffic.
+const PROXY_DOMAINS = process.env.OUTBOUND_PROXY_DOMAINS || "api.telegram.org,discord.com,discordapp.com,gateway.discord.gg,status.discord.com";
+const BLOCKED_DOMAINS = PROXY_DOMAINS.split(",").map(d => d.trim());
+const PROXY_ALL = PROXY_DOMAINS === "*";
 
 if (PROXY_URL) {
   try {
@@ -50,10 +47,22 @@ if (PROXY_URL) {
         }
 
         // 2. Check if we should intercept (and prevent recursion)
-        const isBlocked = BLOCKED_DOMAINS.some(domain => hostname === domain || hostname.endsWith("." + domain));
+        const isInternal = hostname === "localhost" || 
+                         hostname === "127.0.0.1" || 
+                         hostname.endsWith(".hf.space") || 
+                         hostname.endsWith(".huggingface.co") || 
+                         hostname === "huggingface.co";
+
+        let shouldProxy = false;
+        if (PROXY_ALL) {
+          shouldProxy = !isInternal;
+        } else {
+          shouldProxy = BLOCKED_DOMAINS.some(domain => hostname === domain || hostname.endsWith("." + domain));
+        }
+
         const alreadyProxied = options._proxied || (headers && headers["x-target-host"]);
 
-        if (isBlocked && !alreadyProxied) {
+        if (shouldProxy && !alreadyProxied) {
           console.log(`[outbound-fix] Redirecting ${hostname}${path} -> ${proxy.hostname}`);
 
           // 3. Create fresh options for the proxied request
@@ -92,7 +101,11 @@ if (PROXY_URL) {
     https.request = patch(originalHttpsRequest, true);
     http.request = patch(originalHttpRequest, false);
 
-    console.log(`[outbound-fix] Transparent proxy active for: ${BLOCKED_DOMAINS.join(", ")}`);
+    if (PROXY_ALL) {
+      console.log(`[outbound-fix] Transparent proxy active in WILDCARD mode (Proxying ALL except HF internal)`);
+    } else {
+      console.log(`[outbound-fix] Transparent proxy active for: ${BLOCKED_DOMAINS.join(", ")}`);
+    }
     console.log(`[outbound-fix] Target proxy: ${proxy.hostname}`);
   } catch (e) {
     console.error(`[outbound-fix] Failed to initialize: ${e.message}`);
