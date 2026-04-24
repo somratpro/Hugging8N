@@ -58,11 +58,12 @@ secrets:
 Navigate to your new Space's **Settings**, scroll down to **Variables and secrets**, and add:
 
 - `HF_TOKEN` – Your HuggingFace token with **Write** access (to enable automatic backup).
-- `CLOUDFLARE_PROXY_URL` – *(Optional but Recommended)* Your Cloudflare Worker URL to bypass platform blocks.
+- `CLOUDFLARE_PROXY_URL` – *(Optional but Recommended)* Your Cloudflare Worker URL to bypass platform blocks. check [Setup Guide](#-cloudflare-proxy-setup).
 
 ### Step 3: Deploy & Initialize
 
 The Space will build and start automatically. Once ready:
+
 1. Visit the Space URL.
 2. Click **Open n8n Editor**.
 3. Create your **Owner account** (this is your primary login).
@@ -70,6 +71,7 @@ The Space will build and start automatically. Once ready:
 ### Step 4: Monitor & Manage
 
 Use the built-in dashboard at the root URL (`/`) to track:
+
 - **Uptime:** Real-time uptime monitoring.
 - **Sync Status:** Visual indicators for your workflow backups.
 - **Keep-Alive:** Setup tool for external monitors.
@@ -79,16 +81,16 @@ Use the built-in dashboard at the root URL (`/`) to track:
 Hugging Face Free Tier blocks outgoing connections to some services (Telegram, Discord, etc.). Hugging8n includes a transparent proxy system to bypass this.
 
 1. Go to [Cloudflare Workers](https://dash.cloudflare.com/?to=/:account/workers-and-pages).
-2. Create a new Worker and paste the code from [cloudflare-worker.js](./cloudflare-worker.js).
-3. Deploy and copy the Worker URL.
-4. Add this URL as the `CLOUDFLARE_PROXY_URL` secret in your Space settings.
-
-> [!TIP]
-> Check the [Cloudflare Proxy Guide](./CLOUDFLARE_PROXY_GUIDE.md) for detailed step-by-step instructions.
+2. Create a new Worker using "Start with Hello World!" template
+3. choose worker name (e.g. h8n-proxy) and deploy.
+4. Click on "Edit Code" button, paste the code from [cloudflare-worker.js](./cloudflare-worker.js).
+5. Click on "Deploy" button.
+6. Copy the Worker URL (e.g., `https://h8n-proxy.yourname.workers.dev`).
+7. Add this URL as the `CLOUDFLARE_PROXY_URL` secret in your Hugging8n Space settings.
 
 ## 💾 Persistent Backup
 
-Hugging8n automatically creates a private dataset named `hugging8n-backup` in your Hugging Face account. 
+Hugging8n automatically creates a private dataset named `hugging8n-backup` in your Hugging Face account.
 
 - **Restore:** On startup, it pulls the latest state from your dataset.
 - **Sync:** Periodically (every 3 minutes by default), it pushes updates to the dataset.
@@ -130,6 +132,7 @@ cp .env.example .env
 ```
 
 **With Docker:**
+
 ```bash
 docker build -t hugging8n .
 docker run -p 7861:7861 --env-file .env hugging8n

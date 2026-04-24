@@ -1,6 +1,6 @@
 /**
  * Cloudflare Proxy: Transparent Fix for Blocked Domains
- * 
+ *
  * Patches https.request to redirect traffic for Telegram/Discord
  * through a Cloudflare Worker proxy.
  */
@@ -9,16 +9,22 @@
 const https = require("https");
 const http = require("http");
 
-let PROXY_URL = process.env.CLOUDFLARE_PROXY_URL || process.env.OUTBOUND_PROXY_URL;
-if (PROXY_URL && !PROXY_URL.startsWith("http://") && !PROXY_URL.startsWith("https://")) {
+let PROXY_URL = process.env.CLOUDFLARE_PROXY_URL;
+if (
+  PROXY_URL &&
+  !PROXY_URL.startsWith("http://") &&
+  !PROXY_URL.startsWith("https://")
+) {
   PROXY_URL = `https://${PROXY_URL}`;
 }
 
-const DEBUG = process.env.CLOUDFLARE_PROXY_DEBUG === "true" || process.env.OUTBOUND_PROXY_DEBUG === "true";
+const DEBUG = process.env.CLOUDFLARE_PROXY_DEBUG === "true";
 
 // Allow user to define what to proxy. Use "*" to proxy everything except internal HF traffic.
-const PROXY_DOMAINS = process.env.CLOUDFLARE_PROXY_DOMAINS || process.env.OUTBOUND_PROXY_DOMAINS || "api.telegram.org,discord.com,discordapp.com,gateway.discord.gg,status.discord.com";
-const BLOCKED_DOMAINS = PROXY_DOMAINS.split(",").map(d => d.trim());
+const PROXY_DOMAINS =
+  process.env.CLOUDFLARE_PROXY_DOMAINS ||
+  "api.telegram.org,discord.com,discordapp.com,gateway.discord.gg,status.discord.com";
+const BLOCKED_DOMAINS = PROXY_DOMAINS.split(",").map((d) => d.trim());
 const PROXY_ALL = PROXY_DOMAINS === "*";
 
 if (PROXY_URL) {
@@ -43,53 +49,64 @@ if (PROXY_URL) {
           path = options.pathname + options.search;
           headers = options.headers || {};
         } else {
-          hostname = options.hostname || (options.host ? options.host.split(":")[0] : "");
+          hostname =
+            options.hostname ||
+            (options.host ? options.host.split(":")[0] : "");
           path = options.path || "/";
           headers = options.headers || {};
         }
 
         // 2. Check if we should intercept (and prevent recursion)
-        const isInternal = hostname === "localhost" || 
-                         hostname === "127.0.0.1" || 
-                         hostname.endsWith(".hf.space") || 
-                         hostname.endsWith(".huggingface.co") || 
-                         hostname === "huggingface.co";
+        const isInternal =
+          hostname === "localhost" ||
+          hostname === "127.0.0.1" ||
+          hostname.endsWith(".hf.space") ||
+          hostname.endsWith(".huggingface.co") ||
+          hostname === "huggingface.co";
 
         let shouldProxy = false;
         if (PROXY_ALL) {
           shouldProxy = !isInternal;
         } else {
-          shouldProxy = BLOCKED_DOMAINS.some(domain => hostname === domain || hostname.endsWith("." + domain));
+          shouldProxy = BLOCKED_DOMAINS.some(
+            (domain) => hostname === domain || hostname.endsWith("." + domain),
+          );
         }
 
-        const alreadyProxied = options._proxied || (headers && headers["x-target-host"]);
+        const alreadyProxied =
+          options._proxied || (headers && headers["x-target-host"]);
 
         if (shouldProxy && !alreadyProxied) {
-          if (DEBUG) console.log(`[cloudflare-proxy] Redirecting ${hostname}${path} -> ${proxy.hostname}`);
+          if (DEBUG)
+            console.log(
+              `[cloudflare-proxy] Redirecting ${hostname}${path} -> ${proxy.hostname}`,
+            );
 
           // 3. Create fresh options for the proxied request
-          const newOptions = (typeof options === "string" || options instanceof URL)
-            ? { protocol: "https:", path: path }
-            : { ...options };
+          const newOptions =
+            typeof options === "string" || options instanceof URL
+              ? { protocol: "https:", path: path }
+              : { ...options };
 
           // Ensure it's an object we can modify
-          if (typeof newOptions !== "object") return original.apply(this, arguments);
+          if (typeof newOptions !== "object")
+            return original.apply(this, arguments);
 
           newOptions._proxied = true;
           newOptions.protocol = "https:";
           newOptions.hostname = proxy.hostname;
           newOptions.port = proxy.port || 443;
-          
+
           // CRITICAL: Force fresh TLS handshake for the new domain
           newOptions.servername = proxy.hostname;
-          delete newOptions.host;  // Prefer hostname
+          delete newOptions.host; // Prefer hostname
           delete newOptions.agent; // Force a new agent to prevent connection reuse issues
 
           // Merge and update headers
           newOptions.headers = {
             ...(newOptions.headers || {}),
-            "host": proxy.host,
-            "x-target-host": hostname
+            host: proxy.host,
+            "x-target-host": hostname,
           };
 
           // Always use HTTPS for the proxy connection
@@ -105,13 +122,18 @@ if (PROXY_URL) {
 
     if (DEBUG) {
       if (PROXY_ALL) {
-        console.log(`[cloudflare-proxy] Transparent proxy active in WILDCARD mode (Proxying ALL except HF internal)`);
+        console.log(
+          `[cloudflare-proxy] Transparent proxy active in WILDCARD mode (Proxying ALL except HF internal)`,
+        );
       } else {
-        console.log(`[cloudflare-proxy] Transparent proxy active for: ${BLOCKED_DOMAINS.join(", ")}`);
+        console.log(
+          `[cloudflare-proxy] Transparent proxy active for: ${BLOCKED_DOMAINS.join(", ")}`,
+        );
       }
       console.log(`[cloudflare-proxy] Target proxy: ${proxy.hostname}`);
     }
   } catch (e) {
-    if (DEBUG) console.error(`[cloudflare-proxy] Failed to initialize: ${e.message}`);
+    if (DEBUG)
+      console.error(`[cloudflare-proxy] Failed to initialize: ${e.message}`);
   }
 }

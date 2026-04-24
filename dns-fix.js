@@ -42,7 +42,9 @@ function dohResolve(hostname, callback) {
     res.on("end", () => {
       try {
         if (res.statusCode !== 200) {
-          return callback(new Error(`DoH: server returned status ${res.statusCode}`));
+          return callback(
+            new Error(`DoH: server returned status ${res.statusCode}`),
+          );
         }
         const data = JSON.parse(body);
         const aRecords = (data.Answer || []).filter((a) => a.type === 1);
@@ -58,7 +60,9 @@ function dohResolve(hostname, callback) {
       }
     });
   });
-  req.on("error", (e) => callback(new Error(`DoH request failed: ${e.message}`)));
+  req.on("error", (e) =>
+    callback(new Error(`DoH request failed: ${e.message}`)),
+  );
   req.on("timeout", () => {
     req.destroy();
     callback(new Error("DoH request timed out"));
