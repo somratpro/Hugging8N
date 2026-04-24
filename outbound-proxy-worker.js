@@ -4,7 +4,7 @@
  * Deployment:
  * 1. Go to dash.cloudflare.com -> Workers & Pages -> Create Worker.
  * 2. Paste this code and deploy.
- * 3. Use your worker URL (e.g., https://my-proxy.workers.dev) as OUTBOUND_PROXY_URL.
+ * 3. Use your worker URL (e.g., https://my-proxy.workers.dev) as CLOUDFLARE_PROXY_URL.
  * 
  * This worker reads the 'x-target-host' header to determine where to forward the request.
  */

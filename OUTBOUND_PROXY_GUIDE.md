@@ -21,7 +21,7 @@ Hugging8n includes a built-in **Transparent Outbound Proxy** that allows you to 
 
 Go to your Space **Settings** -> **Variables** and add:
 
-1. **`OUTBOUND_PROXY_URL`**:
+1. **`CLOUDFLARE_PROXY_URL`**:
    - Value: `h8n-proxy.yourname.workers.dev` (You can omit the `https://`).
 
 2. **`OUTBOUND_PROXY_DOMAINS`** (Optional):

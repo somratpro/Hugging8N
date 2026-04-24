@@ -10,7 +10,7 @@ license: mit
 secrets:
   - name: HF_TOKEN
     description: HuggingFace token with write access (Settings > Tokens). Used for automatic backup.
-  - name: OUTBOUND_PROXY_URL
+  - name: CLOUDFLARE_PROXY_URL
     description: Your Cloudflare Worker URL to bypass platform blocks (Telegram/Discord).
 ---
 
@@ -55,7 +55,7 @@ You can customize Hugging8n using Environment Variables (Settings > Variables):
 | `SYNC_INTERVAL` | `180` | Backup frequency in seconds. |
 | `GENERIC_TIMEZONE` | `UTC` | Timezone for n8n. |
 | `N8N_LOG_LEVEL` | `error` | Set to `info` for more verbose logs. |
-| `OUTBOUND_PROXY_URL` | - | Your Cloudflare Worker URL (to bypass Discord/Telegram blocks). |
+| `CLOUDFLARE_PROXY_URL` | - | Your Cloudflare Worker URL (to bypass Discord/Telegram blocks). |
 | `OUTBOUND_PROXY_DOMAINS` | (default) | Comma-separated list of domains to proxy. Use `*` to proxy everything. |
 | `SPACE_HOST_OVERRIDE` | - | Override the detected host if using a custom domain. |
 

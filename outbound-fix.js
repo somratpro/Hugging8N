@@ -9,7 +9,7 @@
 const https = require("https");
 const http = require("http");
 
-let PROXY_URL = process.env.OUTBOUND_PROXY_URL;
+let PROXY_URL = process.env.CLOUDFLARE_PROXY_URL || process.env.OUTBOUND_PROXY_URL;
 if (PROXY_URL && !PROXY_URL.startsWith("http://") && !PROXY_URL.startsWith("https://")) {
   PROXY_URL = `https://${PROXY_URL}`;
 }
