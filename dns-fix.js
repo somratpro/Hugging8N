@@ -58,9 +58,10 @@ function dohResolve(hostname, callback) {
 
 // Monkey-patch dns.lookup
 const origLookup = dns.lookup;
+let isResolving = false;
 
 dns.lookup = function patchedLookup(hostname, options, callback) {
-  // Normalize arguments (options is optional, can be number or object)
+  // Normalize arguments
   if (typeof options === "function") {
     callback = options;
     options = {};
@@ -78,7 +79,8 @@ dns.lookup = function patchedLookup(hostname, options, callback) {
     hostname === "127.0.0.1" ||
     hostname === "::1" ||
     /^\d+\.\d+\.\d+\.\d+$/.test(hostname) ||
-    /^::/.test(hostname)
+    /^::/.test(hostname) ||
+    isResolving // RECURSION GUARD
   ) {
     return origLookup.call(dns, hostname, options, callback);
   }
@@ -89,9 +91,11 @@ dns.lookup = function patchedLookup(hostname, options, callback) {
       return callback(null, address, family);
     }
 
-    // 2) System DNS failed with ENOTFOUND or EAI_AGAIN — fall back to DoH
+    // 2) System DNS failed — fall back to DoH
     if (err && (err.code === "ENOTFOUND" || err.code === "EAI_AGAIN")) {
+      isResolving = true; // Enter guard
       dohResolve(hostname, (dohErr, ip) => {
+        isResolving = false; // Exit guard
         if (dohErr || !ip) {
           return callback(err); // Return original error
         }
@@ -101,7 +105,6 @@ dns.lookup = function patchedLookup(hostname, options, callback) {
         callback(null, ip, 4);
       });
     } else {
-      // Other DNS errors — pass through
       callback(err, address, family);
     }
   });
