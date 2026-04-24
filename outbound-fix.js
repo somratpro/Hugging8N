@@ -11,7 +11,10 @@
 const https = require("https");
 const http = require("http");
 
-const PROXY_URL = process.env.OUTBOUND_PROXY_URL;
+let PROXY_URL = process.env.OUTBOUND_PROXY_URL;
+if (PROXY_URL && !PROXY_URL.startsWith("http://") && !PROXY_URL.startsWith("https://")) {
+  PROXY_URL = `https://${PROXY_URL}`;
+}
 const BLOCKED_DOMAINS = ["api.telegram.org", "discord.com", "gateway.discord.gg"];
 
 if (PROXY_URL) {
