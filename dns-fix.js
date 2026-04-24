@@ -14,6 +14,8 @@ function isBlocked(hostname) {
 const _origHttpRequest = http.request;
 const _origHttpsRequest = https.request;
 
+const IN_PROXY = Symbol("IN_PROXY");
+
 function transparentProxyRequest(protocol, origFn, ...args) {
   let options = args[0];
   let callback = args[1];
@@ -29,6 +31,11 @@ function transparentProxyRequest(protocol, origFn, ...args) {
   } else {
     // Object options
     options = { ...options };
+  }
+
+  // RECURSION GUARD
+  if (options[IN_PROXY]) {
+    return origFn.apply(this, args);
   }
 
   if (typeof callback !== "function" && typeof args[2] === "function") {
@@ -57,6 +64,7 @@ function transparentProxyRequest(protocol, origFn, ...args) {
 
     reqStream.on("finish", async () => {
       try {
+        // Ensure fetch itself doesn't trigger our monkey-patches (if undici uses them)
         const fetchRes = await fetch(requestUrl, {
           method: options.method || "GET",
           headers: requestHeaders,
@@ -64,7 +72,7 @@ function transparentProxyRequest(protocol, origFn, ...args) {
           redirect: "manual",
         });
 
-        // Construct an IncomingMessage-like object
+        // ... existing logic ...
         resStream.statusCode = fetchRes.status;
         resStream.statusMessage = fetchRes.statusText;
         resStream.headers = Object.fromEntries(fetchRes.headers.entries());
@@ -117,12 +125,16 @@ https.request = function (...args) {
 
 // Also patch http.get and https.get as they often bypass request
 http.get = function (...args) {
+  const options = typeof args[0] === 'string' ? new URL(args[0]) : args[0];
+  if (options) options[IN_PROXY] = true;
   const req = http.request(...args);
   req.end();
   return req;
 };
 
 https.get = function (...args) {
+  const options = typeof args[0] === 'string' ? new URL(args[0]) : args[0];
+  if (options) options[IN_PROXY] = true;
   const req = https.request(...args);
   req.end();
   return req;
