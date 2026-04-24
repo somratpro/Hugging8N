@@ -3,8 +3,6 @@
  * 
  * Patches https.request to redirect traffic for Telegram/Discord
  * through a Cloudflare Worker proxy.
- * 
- * Set OUTBOUND_PROXY_URL to your Cloudflare Worker URL.
  */
 "use strict";
 
@@ -15,7 +13,14 @@ let PROXY_URL = process.env.OUTBOUND_PROXY_URL;
 if (PROXY_URL && !PROXY_URL.startsWith("http://") && !PROXY_URL.startsWith("https://")) {
   PROXY_URL = `https://${PROXY_URL}`;
 }
-const BLOCKED_DOMAINS = ["api.telegram.org", "discord.com", "gateway.discord.gg"];
+
+const BLOCKED_DOMAINS = [
+  "api.telegram.org",
+  "discord.com",
+  "discordapp.com",
+  "gateway.discord.gg",
+  "status.discord.com"
+];
 
 if (PROXY_URL) {
   try {
@@ -23,11 +28,13 @@ if (PROXY_URL) {
     const originalHttpsRequest = https.request;
     const originalHttpRequest = http.request;
 
-    const patch = (original) => {
+    const patch = (original, isHttps) => {
       return function (options, callback) {
         let hostname = "";
         let path = "";
+        let headers = {};
 
+        // 1. Extract hostname and path from various possible input types
         if (typeof options === "string") {
           const u = new URL(options);
           hostname = u.hostname;
@@ -35,36 +42,45 @@ if (PROXY_URL) {
         } else if (options instanceof URL) {
           hostname = options.hostname;
           path = options.pathname + options.search;
+          headers = options.headers || {};
         } else {
           hostname = options.hostname || (options.host ? options.host.split(":")[0] : "");
           path = options.path || "/";
+          headers = options.headers || {};
         }
 
-        if (BLOCKED_DOMAINS.includes(hostname) && !options._proxied) {
+        // 2. Check if we should intercept (and prevent recursion)
+        const isBlocked = BLOCKED_DOMAINS.some(domain => hostname === domain || hostname.endsWith("." + domain));
+        const alreadyProxied = options._proxied || (headers && headers["x-target-host"]);
+
+        if (isBlocked && !alreadyProxied) {
           console.log(`[outbound-fix] Redirecting ${hostname}${path} -> ${proxy.hostname}`);
 
-          // Create new options
-          const newOptions = typeof options === "string" || options instanceof URL 
-            ? new URL(options.toString()) 
+          // 3. Create fresh options for the proxied request
+          const newOptions = (typeof options === "string" || options instanceof URL)
+            ? { protocol: "https:", path: path }
             : { ...options };
 
-          // Mark to prevent recursion
-          if (typeof newOptions === "object") {
-            newOptions._proxied = true;
-            
-            // Set headers
-            newOptions.headers = { 
-              ...(newOptions.headers || {}), 
-              host: proxy.host,
-              "x-target-host": hostname // Tell the worker where to go
-            };
+          // Ensure it's an object we can modify
+          if (typeof newOptions !== "object") return original.apply(this, arguments);
 
-            newOptions.hostname = proxy.hostname;
-            newOptions.host = proxy.host;
-            newOptions.port = proxy.port || 443;
-          }
+          newOptions._proxied = true;
+          newOptions.protocol = "https:";
+          newOptions.hostname = proxy.hostname;
+          newOptions.host = proxy.host;
+          newOptions.port = proxy.port || 443;
+          
+          // CRITICAL: Set servername for correct TLS/SNI handshake with Cloudflare
+          newOptions.servername = proxy.hostname;
 
-          // Force HTTPS if it was HTTP (unlikely for these domains but good for safety)
+          // Merge and update headers
+          newOptions.headers = {
+            ...(headers || {}),
+            "host": proxy.host,
+            "x-target-host": hostname
+          };
+
+          // Always use HTTPS for the proxy connection
           return originalHttpsRequest.call(https, newOptions, callback);
         }
 
@@ -72,9 +88,8 @@ if (PROXY_URL) {
       };
     };
 
-    https.request = patch(originalHttpsRequest);
-    // Also patch http.request in case someone tries to use plain HTTP for these
-    http.request = patch(originalHttpRequest);
+    https.request = patch(originalHttpsRequest, true);
+    http.request = patch(originalHttpRequest, false);
 
     console.log(`[outbound-fix] Transparent proxy active for: ${BLOCKED_DOMAINS.join(", ")}`);
     console.log(`[outbound-fix] Target proxy: ${proxy.hostname}`);
