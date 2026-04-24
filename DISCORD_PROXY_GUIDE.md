@@ -9,12 +9,14 @@ To work around this, you can easily create your own private Discord proxy using 
 ## Step-by-Step Guide
 
 ### Step 1: Create a Cloudflare Worker
+
 1. Log into [Cloudflare](https://dash.cloudflare.com/) (create an account if you don't have one).
 2. On the left sidebar, go to **Workers & Pages**.
 3. Click **Create Worker** -> **Start with Hello World!**.
 4. Name it something memorable, like `discord-proxy`, and click **Deploy**.
 
 ### Step 2: Add the Proxy Code
+
 1. Once deployed, click the **Edit Code** button.
 2. In the online code editor, delete the existing code and replace it entirely with this 6-line snippet:
 
@@ -28,9 +30,10 @@ export default {
 }
 ```
 
-3. Click **Save and Deploy** in the top right corner. Cloudflare will generate a unique URL for you (e.g., `https://discord-proxy.yourname.workers.dev`).
+1. Click **Save and Deploy** in the top right corner. Cloudflare will generate a unique URL for you (e.g., `https://discord-proxy.yourname.workers.dev`).
 
 ### Step 3: Use the Proxy in n8n
+
 Because the native Discord Node hardcodes connections to `discord.com` when using Bot tokens, you must use the **Webhook** method.
 
 1. Add the standard **Discord** node to your n8n workflow.

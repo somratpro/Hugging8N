@@ -28,8 +28,9 @@ Enable `n8n` (running on Hugging Face Spaces) to connect to blocked external ser
 
 ### 5. Transparent Application-Level Proxy (Implemented)
 - **Status**: ✅ **Partially Fixed** (Requires External Worker)
-- **Method**: Implemented `outbound-fix.js` which patches `https.request` to redirect Telegram and Discord traffic through a Cloudflare Worker.
-- **Why it works**: By changing the target hostname to a custom Cloudflare Worker, we change the SNI (Server Name Indication). Since Cloudflare is not blocked by HF, the connection succeeds. The Worker then forwards the request to the real destination.
+- **Method**: Implemented `outbound-fix.js` which patches `https.request` to redirect blocked traffic through a single **Universal Cloudflare Worker**.
+- **Multi-Service Support**: The patch adds a `x-target-host` header to the request. The Worker reads this header to determine the final destination (Telegram, Discord, etc.), allowing one Worker to handle all blocked services.
+- **Why it works**: By changing the target hostname to your custom Cloudflare Worker, we change the SNI (Server Name Indication). Since Cloudflare is not blocked by HF, the connection succeeds.
 - **Recursion Guard**: Uses a private property `_proxied: true` on the options object to ensure requests aren't intercepted twice.
 
 ## Final Conclusion & Recommendations
@@ -39,14 +40,14 @@ The connectivity issue on Hugging Face Spaces for `n8n` is now fully understood 
 2. **Network/SNI Layer**: **Addressed** via `outbound-fix.js` (Transparent Proxy).
 
 ### Next Steps for User
-1. **Deploy Cloudflare Worker**: Use the code provided in `telegram-proxy-worker.js`.
+1. **Deploy Cloudflare Worker**: Use the code provided in `outbound-proxy-worker.js`.
 2. **Set Environment Variable**: In HF Space Settings, set `OUTBOUND_PROXY_URL` to your worker's URL (e.g., `https://my-proxy.somrat.workers.dev`).
 3. **Restart Space**: The `n8n` instance will now automatically route all Telegram and Discord requests through your proxy without needing to change any workflow nodes.
 
 ## Current State of Repository
 - `dns-fix.js`: Robust DoH fallback with recursion guards.
-- `outbound-fix.js`: Transparent SNI-bypass proxy for Telegram/Discord.
-- `telegram-proxy-worker.js`: Cloudflare Worker code for the proxy.
+- `outbound-fix.js`: Transparent SNI-bypass proxy with `x-target-host` support.
+- `outbound-proxy-worker.js`: Universal Cloudflare Worker code for any blocked target.
 - `Dockerfile`: Configured to preload both fixes.
 - `access.md`: Contains test tokens and execution logs.
 

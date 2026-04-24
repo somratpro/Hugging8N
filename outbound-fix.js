@@ -48,15 +48,17 @@ if (PROXY_URL) {
           // Mark to prevent recursion
           if (typeof newOptions === "object") {
             newOptions._proxied = true;
+            
+            // Set headers
+            newOptions.headers = { 
+              ...(newOptions.headers || {}), 
+              host: proxy.host,
+              "x-target-host": hostname // Tell the worker where to go
+            };
+
             newOptions.hostname = proxy.hostname;
             newOptions.host = proxy.host;
             newOptions.port = proxy.port || 443;
-            
-            // Fix headers
-            if (newOptions.headers) {
-              // Cloudflare needs the correct Host header to route to the worker
-              newOptions.headers = { ...newOptions.headers, host: proxy.host };
-            }
           }
 
           // Force HTTPS if it was HTTP (unlikely for these domains but good for safety)
