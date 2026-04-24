@@ -66,6 +66,14 @@ Hugging8n automatically creates and maintains a private dataset in your Hugging 
 - **Sync Status:** You can check the current sync health directly on the Hugging8n Dashboard.
 - **Restoration:** On every startup, Hugging8n pulls the latest state from your dataset before launching n8n.
 
+## ⚠️ Known Limitations & Workarounds
+
+**Discord Webhooks**
+Hugging Face officially blocks outgoing connections to Discord on Free Tier Spaces. To use the Discord node, you must route your traffic through a simple, free proxy.
+
+👉 **[Read the Guide: How to Create a Free Discord Proxy in 2 minutes](./DISCORD_PROXY_GUIDE.md)**
+*(Upgrading to a paid Space removes this firewall restriction entirely).*
+
 ## 🏗️ Architecture
 
 - `/` : **Premium Dashboard** (Management & Monitoring)
