@@ -10,8 +10,9 @@ license: mit
 secrets:
   - name: HF_TOKEN
     description: HuggingFace token with write access. Used for automatic workspace backup.
-  - name: CLOUDFLARE_PROXY_URL
-    description: Your Cloudflare Worker URL to bypass platform blocks (Telegram/Discord).
+  - name: CLOUDFLARE_WORKERS_TOKEN
+    description: Optional Cloudflare API token for automatic Worker proxy setup.
+  
 ---
 
 <!-- Badges -->
@@ -42,7 +43,7 @@ secrets:
 - ⚡ **Zero Config:** Duplicate this Space, set `HF_TOKEN`, and start automating – no other setup needed.
 - 💾 **Persistent Backup:** Workflows, credentials, and settings automatically sync to a private HF Dataset, preserving your data across restarts.
 - 🔐 **Secure by Default:** Uses n8n's native user management and restricted file permissions (`umask 0077`).
-- 🌐 **Built-in Connectivity:** Includes Transparent Outbound Proxying and DNS-over-HTTPS (DoH) to bypass Hugging Face networking blocks for Telegram, Discord, and others.
+- 🌐 **Built-in Connectivity:** Includes transparent outbound proxying via Cloudflare Workers for Telegram, WhatsApp-related APIs, Google APIs, Discord, and other external services.
 - 📊 **Premium Dashboard:** Beautiful Web UI at `/` for real-time monitoring of uptime, sync health, and n8n status.
 - ⏰ **Easy Keep-Alive:** Set up a one-time UptimeRobot monitor directly from the dashboard to keep your free Space awake.
 - 🐳 **Optimized Infrastructure:** Minimal resource usage with clean startup logs and production-ready proxying.
@@ -58,7 +59,8 @@ secrets:
 Navigate to your new Space's **Settings**, scroll down to **Variables and secrets**, and add:
 
 - `HF_TOKEN` – Your HuggingFace token with **Write** access (to enable automatic backup).
-- `CLOUDFLARE_PROXY_URL` – *(Optional but Recommended)* Your Cloudflare Worker URL to bypass platform blocks. check [Setup Guide](#-cloudflare-proxy-setup).
+- `CLOUDFLARE_WORKERS_TOKEN` – *(Optional, Recommended)* Cloudflare API token for automatic Worker proxy provisioning.
+- `CLOUDFLARE_PROXY_URL` – *(Optional)* Your Cloudflare Worker URL for outbound proxying if you already have a Worker. Check [Setup Guide](#-cloudflare-proxy-setup).
 - `CLOUDFLARE_PROXY_SECRET` – *(Optional, Security Recommended)* Shared secret used between Space and Worker to prevent proxy abuse.
 
 ### Step 3: Deploy & Initialize
@@ -79,7 +81,31 @@ Use the built-in dashboard at the root URL (`/`) to track:
 
 ## 🌐 Cloudflare Proxy Setup
 
-Hugging Face Free Tier blocks outgoing connections to some services (Telegram, Discord, etc.). Hugging8n includes a transparent proxy system to bypass this.
+Hugging Face Free Tier can be unreliable for outbound connections to some services. Hugging8n includes a transparent proxy system to route external API traffic through Cloudflare Workers.
+
+Automatic setup:
+
+1. Create a Cloudflare API Token for your account's Workers.
+2. Add `CLOUDFLARE_WORKERS_TOKEN` as a Space secret.
+3. Restart the Space.
+
+Hugging8n will:
+
+- create or update a Worker named from your Space host
+- generate a private shared secret automatically
+- export `CLOUDFLARE_PROXY_URL` and `CLOUDFLARE_PROXY_SECRET` before n8n starts
+- transparently proxy outbound external requests through Cloudflare by default
+
+Recommended token setup:
+
+- Secret name: `CLOUDFLARE_WORKERS_TOKEN`
+- Token type: `API Token`
+- Account permission: `Workers Scripts: Edit`
+- Account auto-discovery is built in; `CLOUDFLARE_ACCOUNT_ID` is not required
+
+Do not use a Global API key, tunnel token, worker secret, or another Cloudflare credential here.
+
+Manual setup is also available if you prefer to deploy the Worker yourself:
 
 1. Go to [Cloudflare Workers](https://dash.cloudflare.com/?to=/:account/workers-and-pages).
 2. Create a new Worker using "Start with Hello World!" template
@@ -95,8 +121,16 @@ If you skip steps 8-9, proxying still works. The secret simply adds request auth
 
 Optional Worker vars for tighter control:
 
-- `ALLOWED_TARGETS` (comma-separated, defaults to Telegram/Discord hosts)
-- `ALLOW_PROXY_ALL` (`false` by default; set `true` only if you fully trust your setup)
+- `ALLOWED_TARGETS` (comma-separated; only used when `ALLOW_PROXY_ALL=false`)
+- `ALLOW_PROXY_ALL` (`true` by default; proxies all external traffic except HF-internal hosts)
+
+Default behavior:
+
+- `CLOUDFLARE_PROXY_DOMAINS=*`
+- all external traffic is proxied
+- Hugging Face internal hosts stay direct automatically
+
+That wider default is intentional so Google nodes, Telegram, WhatsApp-related APIs, Discord, and other external integrations work without extra domain tuning.
 
 ## 💾 Persistent Backup
 
@@ -129,8 +163,10 @@ Customize your instance with these environment variables:
 | :--- | :--- | :--- |
 | `GENERIC_TIMEZONE` | `UTC` | Timezone for your n8n instance |
 | `N8N_LOG_LEVEL` | `error` | Set to `info` or `debug` for more details |
-| `CLOUDFLARE_PROXY_DOMAINS` | (default list) | Comma-separated domains to proxy (or `*` for all) |
+| `CLOUDFLARE_WORKERS_TOKEN` | — | Cloudflare API token for automatic Worker setup |
+| `CLOUDFLARE_PROXY_DOMAINS` | `*` | Comma-separated domains to proxy (or `*` for all external traffic) |
 | `CLOUDFLARE_PROXY_SECRET` | — | Optional shared secret for app-to-worker proxy authentication |
+| `CLOUDFLARE_ACCOUNT_ID` | auto | Optional Cloudflare account ID override if you want to pin a specific account |
 | `SPACE_HOST_OVERRIDE` | — | Override detected host for custom domains |
 | `N8N_STARTUP_TIMEOUT` | `180` | Max seconds to wait for n8n readiness before fail-fast |
 | `UPTIMEROBOT_SETUP_ENABLED` | `true` | Enable/disable dashboard helper endpoint |
@@ -162,7 +198,7 @@ docker run -p 7861:7861 --env-file .env hugging8n
 
 ## 🐛 Troubleshooting
 
-- **Telegram/Discord not connecting:** Ensure `CLOUDFLARE_PROXY_URL` is set correctly.
+- **Telegram/Google/WhatsApp not connecting:** Ensure `CLOUDFLARE_WORKERS_TOKEN` or `CLOUDFLARE_PROXY_URL` is set correctly, or keep `CLOUDFLARE_PROXY_DOMAINS=*`.
 - **Workflows not saving:** Check if `HF_TOKEN` has **Write** access to your account.
 - **Space keeps sleeping:** Use the dashboard to set up an UptimeRobot monitor.
 - **Authentication errors:** n8n v2 uses its own internal users; ensure you created the owner account on first run.

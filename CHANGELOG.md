@@ -10,8 +10,9 @@ All notable changes to this project will be documented in this file.
 
 - **Self-hosted n8n** — Runs the latest n8n on HuggingFace Spaces Docker using SQLite (no external DB required).
 - **Persistent Backup** — Automatically syncs the entire n8n workspace (workflows, credentials, database) to a private HF Dataset.
-- **Cloudflare Transparent Proxy** — Built-in fix to bypass platform network blocks for services like Telegram and Discord.
-- **DNS-over-HTTPS (DoH)** — Automatic fallback resolution for domains blocked at the DNS level (e.g., WhatsApp, Telegram).
+- **Cloudflare Transparent Proxy** — Built-in fix to bypass platform network blocks for Telegram, WhatsApp-related APIs, Google integrations, Discord, and other outbound services.
+- **Automatic Cloudflare Worker provisioning** — Hugging8n can now create or update its outbound proxy automatically from `CLOUDFLARE_WORKERS_TOKEN`, matching HuggingClaw's auto-setup flow.
+- **Google node coverage widened** — Worker defaults now cover Google API families more broadly so Sheets, Drive, Gmail, OAuth, and related nodes work without manual domain tuning.
 - **Premium Dashboard** — Beautiful web interface at `/` for real-time uptime monitoring and sync health tracking.
 - **Built-in Keep-Alive** — Integrated UptimeRobot setup tool directly from the dashboard to prevent free HF Spaces from sleeping.
 - **Native Security** — Optimized for n8n v2 native user management with hardened file permissions (`umask 0077`).
@@ -25,7 +26,6 @@ All notable changes to this project will be documented in this file.
 - `start.sh` — Orchestrates startup, validates environment, and manages service lifecycle.
 - `health-server.js` — High-performance namespace proxy and dashboard server.
 - `cloudflare-proxy.js` — Transparently intercepts and routes blocked traffic via Cloudflare Workers.
-- `dns-fix.js` — Monkey-patches Node.js DNS for reliable DoH fallback.
 - `n8n-sync.py` — Robust background sync engine using the `huggingface_hub` API.
 - `start.sh` — Configures environment, restores backup, and launches background sync loop.
 

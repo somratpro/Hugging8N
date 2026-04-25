@@ -29,10 +29,10 @@ export default {
 
     const allowedTargetsRaw = (
       env.ALLOWED_TARGETS ||
-      "api.telegram.org,discord.com,discordapp.com,gateway.discord.gg,status.discord.com"
+      "api.telegram.org,discord.com,discordapp.com,gateway.discord.gg,status.discord.com,web.whatsapp.com,graph.facebook.com,googleapis.com,google.com,googleusercontent.com,gstatic.com"
     ).trim();
     const allowProxyAll =
-      String(env.ALLOW_PROXY_ALL || "false").toLowerCase() === "true";
+      String(env.ALLOW_PROXY_ALL || "true").toLowerCase() === "true";
     const allowedTargets = allowedTargetsRaw
       .split(",")
       .map((value) => value.trim().toLowerCase())
@@ -77,6 +77,7 @@ export default {
 
     // Copy headers and remove internal/Cloudflare-specific ones
     const headers = new Headers(request.headers);
+    headers.delete("host");
     headers.delete("cf-connecting-ip");
     headers.delete("cf-ray");
     headers.delete("cf-visitor");
@@ -93,7 +94,7 @@ export default {
     try {
       const response = await fetch(modifiedRequest);
 
-      // Special handling for Discord/Telegram which might return 403 on some CF IPs
+      // Special handling for some providers which might return 403 on some CF IPs.
       // If needed, you can add retry logic here.
 
       return response;
