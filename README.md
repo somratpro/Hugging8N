@@ -11,8 +11,7 @@ secrets:
   - name: HF_TOKEN
     description: HuggingFace token with write access. Used for automatic workspace backup.
   - name: CLOUDFLARE_WORKERS_TOKEN
-    description: Optional Cloudflare API token for automatic Worker proxy setup.
-  
+    description: Cloudflare API token for automatic Worker proxy setup.
 ---
 
 <!-- Badges -->
@@ -58,10 +57,8 @@ secrets:
 
 Navigate to your new Space's **Settings**, scroll down to **Variables and secrets**, and add:
 
-- `HF_TOKEN` – Your HuggingFace token with **Write** access (to enable automatic backup).
-- `CLOUDFLARE_WORKERS_TOKEN` – *(Optional, Recommended)* Cloudflare API token for automatic Worker proxy provisioning.
-- `CLOUDFLARE_PROXY_URL` – *(Optional)* Your Cloudflare Worker URL for outbound proxying if you already have a Worker. Check [Setup Guide](#-cloudflare-proxy-setup).
-- `CLOUDFLARE_PROXY_SECRET` – *(Optional, Security Recommended)* Shared secret used between Space and Worker to prevent proxy abuse.
+- `HF_TOKEN` – Your HuggingFace token with **Write** access (for automatic backup).
+- `CLOUDFLARE_WORKERS_TOKEN` – **(Highly Recommended)** Cloudflare API token. Hugging8n will automatically create and configure a Worker proxy for you.
 
 ### Step 3: Deploy & Initialize
 
@@ -81,56 +78,32 @@ Use the built-in dashboard at the root URL (`/`) to track:
 
 ## 🌐 Cloudflare Proxy Setup
 
-Hugging Face Free Tier can be unreliable for outbound connections to some services. Hugging8n includes a transparent proxy system to route external API traffic through Cloudflare Workers.
+Hugging Face Free Tier often restricts outbound connections to services like Telegram, Discord, and WhatsApp. Hugging8n solves this with a **Transparent Outbound Proxy** via Cloudflare Workers.
 
-Automatic setup:
+### ⚡ Automatic Setup (Recommended)
 
-1. Create a Cloudflare API Token for your account's Workers.
-2. Add `CLOUDFLARE_WORKERS_TOKEN` as a Space secret.
-3. Restart the Space.
+This is the easiest way. Hugging8n will handle the deployment for you.
 
-Hugging8n will:
+1. Create a **Cloudflare API Token**:
+   - Go to [API Tokens](https://dash.cloudflare.com/profile/api-tokens).
+   - Create Token -> **Edit Cloudflare Workers** template.
+   - Ensure it has `Account: Workers Scripts: Edit` permissions.
+2. Add the token as a secret named `CLOUDFLARE_WORKERS_TOKEN` in your Space Settings.
 
-- create or update a Worker named from your Space host
-- generate a private shared secret automatically
-- export `CLOUDFLARE_PROXY_URL` and `CLOUDFLARE_PROXY_SECRET` before n8n starts
-- transparently proxy outbound external requests through Cloudflare by default
+**What happens next?**
 
-Recommended token setup:
+- Hugging8n automatically creates a Worker named after your Space.
+- It generates a secure, private `CLOUDFLARE_PROXY_SECRET`.
+- All restricted outbound traffic is automatically routed through this Worker.
 
-- Secret name: `CLOUDFLARE_WORKERS_TOKEN`
-- Token type: `API Token`
-- Account permission: `Workers Scripts: Edit`
-- Account auto-discovery is built in; `CLOUDFLARE_ACCOUNT_ID` is not required
+### 🛠️ Manual Setup
 
-Do not use a Global API key, tunnel token, worker secret, or another Cloudflare credential here.
+If you prefer to manage the Worker yourself:
 
-Manual setup is also available if you prefer to deploy the Worker yourself:
-
-1. Go to [Cloudflare Workers](https://dash.cloudflare.com/?to=/:account/workers-and-pages).
-2. Create a new Worker using "Start with Hello World!" template
-3. choose worker name (e.g. h8n-proxy) and deploy.
-4. Click on "Edit Code" button, paste the code from [cloudflare-worker.js](./cloudflare-worker.js).
-5. Click on "Deploy" button.
-6. Copy the Worker URL (e.g., `https://h8n-proxy.yourname.workers.dev`).
-7. Add this URL as the `CLOUDFLARE_PROXY_URL` secret in your Hugging8n Space settings.
-8. (Optional, Recommended) In Cloudflare Worker settings, add a secret binding named `CLOUDFLARE_PROXY_SECRET`.
-9. (Optional, Recommended) Add the same value in your Space secrets as `CLOUDFLARE_PROXY_SECRET`.
-
-If you skip steps 8-9, proxying still works. The secret simply adds request authentication between your app and worker.
-
-Optional Worker vars for tighter control:
-
-- `ALLOWED_TARGETS` (comma-separated; only used when `ALLOW_PROXY_ALL=false`)
-- `ALLOW_PROXY_ALL` (`true` by default; proxies all external traffic except HF-internal hosts)
-
-Default behavior:
-
-- `CLOUDFLARE_PROXY_DOMAINS=*`
-- all external traffic is proxied
-- Hugging Face internal hosts stay direct automatically
-
-That wider default is intentional so Google nodes, Telegram, WhatsApp-related APIs, Discord, and other external integrations work without extra domain tuning.
+1. Create a new Cloudflare Worker.
+2. Paste the code from [cloudflare-worker.js](./cloudflare-worker.js) and deploy.
+3. Add the Worker URL to your Space as `CLOUDFLARE_PROXY_URL`.
+4. (Optional) Set a `CLOUDFLARE_PROXY_SECRET` in both the Worker (as a variable) and the Space (as a secret).
 
 ## 💾 Persistent Backup
 
@@ -146,7 +119,7 @@ Hugging8n automatically creates a private dataset named `hugging8n-backup` in yo
 
 ## 💓 Staying Alive *(Recommended on Free HF Spaces)*
 
-To help keep your Space awake, set up an external UptimeRobot monitor directly from the dashboard UI.
+To help keep your Space awake, set up an external [UptimeRobot](https://uptimerobot.com/) monitor directly from the dashboard UI.
 
 1. Open your Space's dashboard (`/`).
 2. Find the **Keep Space Awake** section.
@@ -165,12 +138,13 @@ Customize your instance with these environment variables:
 | `N8N_LOG_LEVEL` | `error` | Set to `info` or `debug` for more details |
 | `CLOUDFLARE_WORKERS_TOKEN` | — | Cloudflare API token for automatic Worker setup |
 | `CLOUDFLARE_PROXY_DOMAINS` | `*` | Comma-separated domains to proxy (or `*` for all external traffic) |
-| `CLOUDFLARE_PROXY_SECRET` | — | Optional shared secret for app-to-worker proxy authentication |
-| `CLOUDFLARE_ACCOUNT_ID` | auto | Optional Cloudflare account ID override if you want to pin a specific account |
+| `CLOUDFLARE_PROXY_SECRET` | — | Optional shared secret for proxy authentication |
+| `CLOUDFLARE_WORKER_NAME` | auto | Custom name for the automatically created Worker |
+| `CLOUDFLARE_ACCOUNT_ID` | auto | Optional Cloudflare account ID override |
 | `SPACE_HOST_OVERRIDE` | — | Override detected host for custom domains |
-| `N8N_STARTUP_TIMEOUT` | `180` | Max seconds to wait for n8n readiness before fail-fast |
+| `N8N_STARTUP_TIMEOUT` | `180` | Max seconds to wait for n8n readiness |
 | `UPTIMEROBOT_SETUP_ENABLED` | `true` | Enable/disable dashboard helper endpoint |
-| `UPTIMEROBOT_RATE_LIMIT_PER_MINUTE` | `5` | Per-IP rate limit for helper endpoint |
+| `UPTIMEROBOT_RATE_LIMIT_PER_MINUTE` | `5` | Rate limit for monitor creation |
 
 ## 💻 Local Development
 
