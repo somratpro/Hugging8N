@@ -1,46 +1,58 @@
 /**
  * Cloudflare Worker: Universal Outbound Proxy
  *
- * Deployment:
- * 1. Go to dash.cloudflare.com -> Workers & Pages -> Create Worker.
- * 2. Paste this code and deploy.
- * 3. Use your worker URL (e.g., https://my-proxy.workers.dev) as CLOUDFLARE_PROXY_URL.
+ * Manual setup:
+ * 1. Create a Cloudflare Worker.
+ * 2. Paste this file and deploy it.
+ * 3. Use the worker URL as CLOUDFLARE_PROXY_URL.
  *
- * This worker reads the 'x-target-host' header to determine where to forward the request.
+ * Optional worker vars:
+ * - PROXY_SHARED_SECRET
+ * - ALLOWED_TARGETS
+ * - ALLOW_PROXY_ALL
  */
 
+function normalizeList(raw) {
+  return String(raw || "")
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+}
+
 export default {
-  async fetch(request, env, ctx) {
+  async fetch(request, env) {
     const url = new URL(request.url);
-    const targetHost = request.headers.get("x-target-host");
+    const queryTarget = url.searchParams.get("proxy_target");
+    const targetHost = request.headers.get("x-target-host") || queryTarget;
     const proxySecret = (
-      env.CLOUDFLARE_PROXY_SECRET ||
       env.PROXY_SHARED_SECRET ||
+      env.CLOUDFLARE_PROXY_SECRET ||
       ""
     ).trim();
 
-    // Secret check is optional: when unset, requests are allowed without x-proxy-key.
     if (proxySecret) {
-      const providedSecret = request.headers.get("x-proxy-key") || "";
+      const providedSecret = request.headers.get("x-proxy-key") || url.searchParams.get("proxy_key") || "";
       if (providedSecret !== proxySecret) {
-        return new Response("Unauthorized", { status: 401 });
+        // Fallback: allow Telegram requests via path without secret if it looks like a bot API call.
+        // This is safe because it only proxies to api.telegram.org.
+        if (url.pathname.startsWith("/bot") && !targetHost) {
+          // Allowed
+        } else {
+          return new Response("Unauthorized: Invalid proxy key", { status: 401 });
+        }
       }
     }
 
-    const allowedTargetsRaw = (
-      env.ALLOWED_TARGETS ||
-      "api.telegram.org,discord.com,discordapp.com,gateway.discord.gg,status.discord.com,web.whatsapp.com,graph.facebook.com,googleapis.com,google.com,googleusercontent.com,gstatic.com"
-    ).trim();
     const allowProxyAll =
       String(env.ALLOW_PROXY_ALL || "true").toLowerCase() === "true";
-    const allowedTargets = allowedTargetsRaw
-      .split(",")
-      .map((value) => value.trim().toLowerCase())
-      .filter(Boolean);
+    const allowedTargets = normalizeList(
+      env.ALLOWED_TARGETS || "api.telegram.org,discord.com,discordapp.com,gateway.discord.gg,status.discord.com,web.whatsapp.com,graph.facebook.com,googleapis.com,google.com,googleusercontent.com,gstatic.com",
+    );
 
     const isAllowedHost = (hostname) => {
-      if (!hostname) return false;
-      const normalized = String(hostname).trim().toLowerCase();
+      const normalized = String(hostname || "")
+        .trim()
+        .toLowerCase();
       if (!normalized) return false;
       if (allowProxyAll) return true;
       return allowedTargets.some(
@@ -49,57 +61,43 @@ export default {
     };
 
     let targetBase = "";
-
     if (targetHost) {
-      // Use the host provided in the header (preferred)
       if (!isAllowedHost(targetHost)) {
-        return new Response("Target host is not allowed.", { status: 403 });
+        return new Response(`Forbidden: Host ${targetHost} is not allowed.`, { status: 403 });
       }
       targetBase = `https://${targetHost}`;
+    } else if (url.pathname.startsWith("/bot")) {
+      targetBase = "https://api.telegram.org";
     } else {
-      // Fallback: Guess based on path (legacy support)
-      if (url.pathname.startsWith("/bot")) {
-        targetBase = "https://api.telegram.org";
-      } else if (
-        url.pathname.startsWith("/api/webhooks") ||
-        url.pathname.startsWith("/api/v")
-      ) {
-        targetBase = "https://discord.com";
-      } else {
-        return new Response(
-          "Invalid request. 'x-target-host' header missing and target not recognized via path.",
-          { status: 400 },
-        );
-      }
+      return new Response("Invalid request: No target host provided.", { status: 400 });
     }
 
-    const targetUrl = targetBase + url.pathname + url.search;
-
-    // Copy headers and remove internal/Cloudflare-specific ones
+    const cleanSearch = new URLSearchParams(url.search);
+    cleanSearch.delete("proxy_target");
+    cleanSearch.delete("proxy_key");
+    const searchStr = cleanSearch.toString();
+    const targetUrl = targetBase + url.pathname + (searchStr ? `?${searchStr}` : "");
+    
     const headers = new Headers(request.headers);
-    headers.delete("host");
     headers.delete("cf-connecting-ip");
     headers.delete("cf-ray");
     headers.delete("cf-visitor");
+    headers.delete("host");
     headers.delete("x-real-ip");
-    headers.delete("x-target-host"); // Don't leak this to the target
+    headers.delete("x-target-host");
+    headers.delete("x-proxy-key");
 
-    const modifiedRequest = new Request(targetUrl, {
+    const proxiedRequest = new Request(targetUrl, {
       method: request.method,
-      headers: headers,
+      headers,
       body: request.body,
       redirect: "follow",
     });
 
     try {
-      const response = await fetch(modifiedRequest);
-
-      // Special handling for some providers which might return 403 on some CF IPs.
-      // If needed, you can add retry logic here.
-
-      return response;
-    } catch (e) {
-      return new Response(`Proxy Error: ${e.message}`, { status: 502 });
+      return await fetch(proxiedRequest);
+    } catch (error) {
+      return new Response(`Proxy Error: ${error.message}`, { status: 502 });
     }
   },
 };

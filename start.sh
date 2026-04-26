@@ -73,14 +73,17 @@ else
   echo "HF_TOKEN is not set. Running without dataset persistence."
 fi
 
-CF_PROXY_ENV_FILE="/tmp/hugging8n-cloudflare-proxy.env"
 CLOUDFLARE_WORKERS_TOKEN="${CLOUDFLARE_WORKERS_TOKEN:-${CLOUDFLARE_API_TOKEN:-}}"
 export CLOUDFLARE_WORKERS_TOKEN
+CF_PROXY_ENV_FILE="/tmp/hugging8n-cloudflare-proxy.env"
 if [ -n "${CLOUDFLARE_WORKERS_TOKEN:-}" ] || [ -n "${CLOUDFLARE_PROXY_URL:-}" ]; then
-  echo "Preparing Cloudflare outbound proxy..."
+  export CLOUDFLARE_PROXY_DOMAINS="${CLOUDFLARE_PROXY_DOMAINS:-*}"
+  export CLOUDFLARE_PROXY_DEBUG="${CLOUDFLARE_PROXY_DEBUG:-true}"
+  echo "☁️ Preparing Cloudflare outbound proxy..."
   python3 "$APP_DIR/cloudflare-proxy-setup.py" || true
   if [ -f "$CF_PROXY_ENV_FILE" ]; then
     . "$CF_PROXY_ENV_FILE"
+    echo "  ✅ Proxy environment loaded: ${CLOUDFLARE_PROXY_URL:-none}"
   fi
 fi
 
