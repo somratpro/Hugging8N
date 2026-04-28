@@ -182,11 +182,31 @@ docker run -p 7861:7861 --env-file .env hugging8n
 - **Space keeps sleeping:** Use the dashboard to set up an UptimeRobot monitor.
 - **Authentication errors:** n8n v2 uses its own internal users; ensure you created the owner account on first run.
 
+## 🌟 More Projects
+
+Similar projects by [@somratpro](https://github.com/somratpro) — all free, one-click deploy on HF Spaces:
+
+| Project | What it runs | HF Space | GitHub |
+| :--- | :--- | :--- | :--- |
+| **HuggingClaw** | OpenClaw — Claude Code in the browser | [Space](https://huggingface.co/spaces/somratpro/HuggingClaw) | [Repo](https://github.com/somratpro/huggingclaw) |
+| **HuggingClip** | Paperclip — AI agent orchestration platform | [Space](https://huggingface.co/spaces/somratpro/HuggingClip) | [Repo](https://github.com/somratpro/huggingclip) |
+
 ## 📚 Links
 
 - [n8n Documentation](https://docs.n8n.io)
 - [Hugging Face Spaces](https://huggingface.co/docs/hub/spaces)
 - [Cloudflare Workers](https://workers.cloudflare.com/)
+
+## ❤️ Support
+
+If Hugging8n saves you time, consider buying me a coffee to keep the projects alive!
+
+**USDT (TRC-20 / TRON network only)**
+```
+TELx8TJz1W1h7n6SgpgGNNGZXpJCEUZrdB
+```
+> [!WARNING]
+> Send **USDT on TRC-20 network only**. Sending other tokens or using a different network will result in permanent loss.
 
 ## 🤝 Contributing
 
